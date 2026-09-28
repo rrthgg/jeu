@@ -169,10 +169,11 @@ SECTEURS = {
         "Emprunt bancaire colossal au départ. Tout se joue sur les économies d'échelle : si la demande baisse "
         "de 15 %, les coûts fixes de l'usine écrasent la trésorerie.",
         "modules", 2_000, 1_650,
-        ("Forgeval", "Métallia Auto", "Batterix", "Axiom Mobility", "Groupe Castelnau", "Ferromec"),
+        ("Forgeval", "Métallia Auto", "Batterix", "Axiom Mobility", "Groupe Castelnau", "Ferromec", "Voltamec",
+         "Sidérix", "Automeca Rhône", "Lumen Drive", "Groupe Vauclair", "Carbonis", "Méca-Loire", "Titanor"),
         marche=7_800, part_max=0.9, elasticite=3.0, extension=0.1, saturation=0.9,
         loyer=15_000, installation=9_000_000, libelle_installation="Usine n°1", duree_installation=120,
-        multiple=0.6, saison=[1.0, 1.0, 1.05, 1.0, 1.0, 1.0, 0.9, 0.55, 1.0, 1.05, 1.0, 0.85],
+        multiple=0.45, saison=[1.0, 1.0, 1.05, 1.0, 1.0, 1.0, 0.9, 0.55, 1.0, 1.05, 1.0, 0.85],
         salaire=5_000, salaire_dirigeant=9_000, frais_generaux=25_000, equipe_initiale=4,
         investisseurs=3_400_000, part_investisseurs=0.60, pret_conseille=6_500_000, pret_max=8_000_000,
         pas_pret=250_000, duree_pret_initial=96, differe_initial=6, libelle_pret="Prêt bancaire industriel",
@@ -193,10 +194,11 @@ SECTEURS = {
         "Croissance lente au début (R&D et prospection). Une fois la base de clients installée, la trésorerie "
         "devient prévisible et la valorisation explose lors des levées de fonds.",
         "clients", 450, 90,
-        ("Gestio", "Planify", "Factura", "Pilotéo", "Kalkul", "Syncrone"),
+        ("Gestio", "Planify", "Factura", "Pilotéo", "Kalkul", "Syncrone", "Datalune", "Contractis", "Nuagio",
+         "Orkestra", "Payflow", "Stokly", "Recrutia", "Qualitop"),
         marche=180, part_max=0.5, elasticite=1.3, extension=0.5, saturation=0.6, capacite=60,
         loyer=6_000, installation=250_000, libelle_installation="Logiciel (première version)",
-        duree_installation=36, multiple=2.4, bonus_croissance=0.6, recurrent=True, churn=0.03,
+        duree_installation=36, multiple=1.2, bonus_croissance=0.6, recurrent=True, churn=0.03,
         salaire=5_500, salaire_dirigeant=6_000, frais_generaux=6_000, equipe_initiale=3,
         investisseurs=1_400_000, part_investisseurs=0.25, pret_conseille=300_000, pret_max=800_000,
         pas_pret=50_000, libelle_pret="Prêt d'amorçage Bpifrance", subvention_initiale=90_000,
@@ -217,7 +219,8 @@ SECTEURS = {
         "Survie assurée par les subventions et les fonds VC. Risque binaire : si l'essai réussit, la valorisation "
         "est multipliée ; s'il échoue et que vous n'avez rien d'autre en clinique, c'est la faillite immédiate.",
         "traitements", 0, 0,
-        ("Genoptys", "Immunova", "CellAxis", "Neurolys", "BioStral", "Thérapix"),
+        ("Genoptys", "Immunova", "CellAxis", "Neurolys", "BioStral", "Thérapix", "Oncovia", "Pharmalys",
+         "GenAtlas", "Myogène", "Cardiovex", "Hépatis", "Virolab", "Dermacell"),
         loyer=20_000, installation=1_500_000, libelle_installation="Laboratoire", duree_installation=60,
         multiple=4.0, salaire=6_500, salaire_dirigeant=9_000, frais_generaux=20_000, equipe_initiale=5,
         investisseurs=5_900_000, part_investisseurs=0.50, pret_conseille=1_000_000, pret_max=1_500_000,
@@ -240,7 +243,9 @@ SECTEURS = {
         "Aucun revenu pendant le développement. Le succès du mois de lancement, porté par la qualité et la "
         "communauté accumulées, conditionne la survie du studio.",
         "copies", 25, 0,
-        ("Pixel Forge", "Studio Lueur", "Nébuleuse Games", "Orbital Arts", "Kraken Interactive", "Moonveil"),
+        ("Pixel Forge", "Studio Lueur", "Nébuleuse Games", "Orbital Arts", "Kraken Interactive", "Moonveil",
+         "Brume Studio", "Hexa Loop", "Renard Rouge", "Glitch & Co", "Studio Albatros", "Néon Crow", "Petit Golem",
+         "Arcanum Games"),
         loyer=6_000, installation=150_000, libelle_installation="Matériel et licences", duree_installation=36,
         multiple=2.5, salaire=4_800, salaire_dirigeant=5_500, frais_generaux=5_000, equipe_initiale=6,
         investisseurs=700_000, part_investisseurs=0.30, pret_conseille=200_000, pret_max=500_000, pas_pret=25_000,
@@ -262,10 +267,12 @@ SECTEURS = {
         "Interdiction de baisser les prix sous peine de ruiner la marque. Le marketing n'augmente pas le volume : "
         "il rehausse le prix maximal que les clientes acceptent de payer.",
         "pièces", 5_000, 700,
-        ("Maison Delacour", "Atelier Verlaine", "Maison Solène", "Orsay & Fils", "Maison Évanne", "Castiglione"),
+        ("Maison Delacour", "Atelier Verlaine", "Maison Solène", "Orsay & Fils", "Maison Évanne", "Castiglione",
+         "Maison Aubrac", "Valmont Paris", "Atelier Séverine", "Maison Lisière", "Bellardi", "Maison Corvel",
+         "Atelier Montmartre", "Maison Irisée"),
         marche=420, part_max=0.5, elasticite=0.3, extension=0.5, saturation=0.6, capacite=5,
         loyer=55_000, installation=1_200_000, libelle_installation="Atelier et boutique", duree_installation=60,
-        multiple=2.5, salaire=4_200, salaire_dirigeant=8_000, frais_generaux=15_000, equipe_initiale=5,
+        multiple=1.5, salaire=4_200, salaire_dirigeant=8_000, frais_generaux=15_000, equipe_initiale=5,
         investisseurs=1_900_000, part_investisseurs=0.40, pret_conseille=500_000, pret_max=1_500_000,
         pas_pret=50_000, bancabilite=0.8, credit_impot=0.2, levees_max=3, echelle=8, notoriete_initiale=20,
         qualite_initiale=65, noto_gain=3.2, noto_echelle=20_000, noto_declin=0.05, qual_echelle=5_000,
@@ -284,9 +291,10 @@ SECTEURS = {
         "Des rentrées d'argent rares mais massives (acomptes, jalons). Il faut 18 mois de prospection pour "
         "viser les gros contrats, et une capacité insuffisante coûte de lourdes pénalités.",
         "contrats", 0, 1.0,
-        ("Astralis", "Aéroméca", "Orbitech", "Stratos Systems", "Celestia Space", "Propulsa"),
+        ("Astralis", "Aéroméca", "Orbitech", "Stratos Systems", "Celestia Space", "Propulsa", "Aérolys",
+         "Cosmotec", "Vectra Aéro", "Zénith Systems", "Nova Orbital", "Skytech Industries", "Aquila Space", "Mécavol"),
         loyer=30_000, installation=4_000_000, libelle_installation="Salles blanches et bancs d'essai",
-        duree_installation=120, multiple=1.2, salaire=6_500, salaire_dirigeant=9_000, frais_generaux=25_000,
+        duree_installation=120, multiple=2.0, salaire=6_500, salaire_dirigeant=9_000, frais_generaux=25_000,
         equipe_initiale=12, investisseurs=4_400_000, part_investisseurs=0.55, pret_conseille=2_000_000,
         pret_max=5_000_000, pas_pret=100_000, duree_pret_initial=84, subvention_initiale=1_500_000,
         libelle_subvention="Subvention France 2030", b2b=1.0, delai_clients=30, bancabilite=1.0,
@@ -306,7 +314,8 @@ SECTEURS = {
         "Gestion financière au centime près : risque constant de rupture de stock, ou d'impayé fournisseur si "
         "la trésorerie flanche.",
         "commandes", 60, 47,
-        ("Cartalys", "PanierPlus", "MégaMarché", "Livrée", "DistriNord", "ClicCourses"),
+        ("Cartalys", "PanierPlus", "MégaMarché", "Livrée", "DistriNord", "ClicCourses", "Hyperia", "ShopExpress",
+         "Primeur & Co", "Achatissimo", "DistriSud", "Rayon Vert", "Kiosko", "MaxiDépôt"),
         marche=420_000, part_max=0.6, elasticite=3.5, extension=0.2, saturation=0.8, capacite=2_500,
         loyer=90_000, installation=3_000_000, libelle_installation="Entrepôt automatisé et site",
         duree_installation=60, multiple=0.5, saison=[1.1, 0.9, 0.95, 0.95, 1.0, 0.95, 0.95, 0.85, 1.0, 1.05, 1.35,
@@ -328,7 +337,9 @@ SECTEURS = {
         "Faible risque d'exploitation une fois les centrales construites, mais très sensible aux taux d'intérêt, "
         "aux prix de l'électricité et aux réglementations.",
         "MWh", 70, 0,
-        ("Solvéo", "Éolia Énergies", "Voltaïs", "Terra Watt", "Hélios Capital", "NéoWatt"),
+        ("Solvéo", "Éolia Énergies", "Voltaïs", "Terra Watt", "Hélios Capital", "NéoWatt", "Zéphyr Énergie",
+         "Photonia", "Aurore Renouvelables", "Watt & Vent", "Ampère Capital", "Solaria France", "Boréal Power",
+         "Cléo Énergie"),
         loyer=5_000, installation=28_000_000, libelle_installation="Parc solaire n°1", duree_installation=240,
         multiple=6.0, salaire=5_800, salaire_dirigeant=8_000, frais_generaux=10_000, equipe_initiale=3,
         investisseurs=5_900_000, part_investisseurs=0.60, pret_conseille=22_400_000, pret_max=22_400_000,
@@ -461,7 +472,51 @@ STRATEGIES = {
                          0.05, 2_000, 0.80, 1.6),
 }
 DIFFICULTES = {"Facile": 0.7, "Normal": 1.0, "Difficile": 1.35}
-COULEURS = ["#2f5bea", "#e5484d", "#f0a020", "#12a594", "#8e4ec6", "#d6409f"]   # la première : le joueur
+COULEURS = ["#2f5bea", "#e5484d", "#f0a020", "#12a594", "#8e4ec6", "#d6409f", "#84cc16", "#0ea5e9", "#f97316",
+            "#a3a3a3", "#14b8a6", "#eab308", "#c084fc", "#fb7185"]   # la première : le joueur
+MAX_CONCURRENTS = 10
+BR_CONCURRENTS = 99            # battle royale : 99 adversaires
+BR_DUREE = 24                  # … sur 2 ans
+BR_ZONE = 3                    # la zone se resserre tous les 3 mois…
+BR_PREMIERE_ZONE = 6           # … à partir du 6e (avant, les valeurs sont trop proches pour départager)
+BR_PREFIXES = ["Nova", "Axio", "Terra", "Lumen", "Vertex", "Orion", "Hélio", "Kappa", "Zêta", "Aster", "Cobalt",
+               "Nexa", "Véla", "Arka", "Solis", "Opti", "Quanta", "Iris", "Atlas", "Boréal", "Cirrus", "Delta",
+               "Écho", "Fjord", "Galaxie", "Horizon", "Ivoire", "Jade", "Lyra", "Mistral", "Onyx", "Pulsar",
+               "Rubis", "Sirius", "Titan", "Ultra", "Véga", "Zéphyr", "Argos", "Cassini", "Dune", "Élan", "Faro",
+               "Granit", "Hydra", "Kairos", "Lotus", "Méridien", "Nimbus", "Oural", "Prisme", "Quasar", "Rivage"]
+BR_SUFFIXES = {"industrie": ["Industries", "Motors", "Mécanique", "Automotive", "Métal"],
+               "saas": ["Soft", "Cloud", "Data", "App", "Labs"],
+               "biotech": ["Bio", "Pharma", "Therapeutics", "Genomics", "Santé"],
+               "jeu": ["Games", "Studio", "Interactive", "Play", "Pixel"],
+               "luxe": ["Maison {p}", "Atelier {p}", "{p} Paris", "{p} & Fils", "Maison de {p}"],
+               "aero": ["Aéro", "Space", "Orbital", "Avionics", "Propulsion"],
+               "distribution": ["Market", "Shop", "Distribution", "Express", "Discount"],
+               "energie": ["Énergie", "Solar", "Power", "Watt", "Renouvelables"]}
+
+
+def noms_battle_royale(s: "Secteur", rng: random.Random, n: int) -> list[str]:
+    """Assez de noms d'entreprises plausibles pour remplir une arène de 100."""
+    noms = list(s.noms)
+    for suffixe in BR_SUFFIXES.get(s.modele, ["Group"]):
+        for p in BR_PREFIXES:
+            noms.append(suffixe.format(p=p) if "{p}" in suffixe else f"{p} {suffixe}")
+    vus, uniques = set(), []
+    for x in noms:
+        if x not in vus:
+            vus.add(x)
+            uniques.append(x)
+    base = uniques[:len(s.noms)]
+    reste = uniques[len(s.noms):]
+    rng.shuffle(base)
+    rng.shuffle(reste)
+    return (base + reste)[:n]
+# ---- réglages d'équilibrage (voir equilibrage : un bon joueur doit viser × 3 à × 5 dans chaque secteur)
+EBITDA_ENERGIE = 15.0          # une centrale en service vaut ce multiple de son excédent brut annuel
+CARNET_AERO = 0.12             # part du carnet de commandes comptée dans la valeur (aéronautique)
+ORGANIQUE_JEU = 70.0           # ventes « naturelles » d'un jeu, par point de notoriété
+GAIN_WISHLIST = 1_400.0        # efficacité du marketing sur les wishlists
+AO_PAR_ACTEUR = 0.22           # appels d'offres par mois et par entreprise du secteur (aéronautique)
+ECHELLE_MARCHE = 0.72          # nombreux concurrents : taille du marché (voir Marche.__init__)
 
 
 # ---------------------------------------------------------------- prêts
@@ -1510,7 +1565,7 @@ class ActiviteJeu(Activite):
                       + (e.moral - 60) / 60 - 0.4 - (0.6 if trop_gros else 0.0))
         p.qualite = max(0.0, min(100.0, p.qualite))
         portee = ENVERGURES[p.envergure][3]
-        gain = (1_400 * math.log1p(e.mkt * e.mkt_mult * (1 + e.effet("mkt")) / 5_000) * (0.4 + e.notoriete / 60)
+        gain = (GAIN_WISHLIST * math.log1p(e.mkt * e.mkt_mult * (1 + e.effet("mkt")) / 5_000) * (0.4 + e.notoriete / 60)
                 * portee * (1.0 if p.avancement > 0.25 else 0.4) * (1.3 if p.editeur else 1.0))
         p.wishlists = p.wishlists * 0.99 + gain
 
@@ -1554,9 +1609,10 @@ class ActiviteJeu(Activite):
             lib, _, prix_ref, portee = ENVERGURES[p.envergure]
             note = max(15.0, min(97.0, note_attendue(p.qualite, p.avancement) + r.gauss(0, 6)))
             f_prix = max(0.3, min(2.0, (prix_ref / max(1.0, e.prix)) ** 1.3))
-            organique = e.notoriete * 35 * portee * (note / 70) ** 2
+            organique = e.notoriete * ORGANIQUE_JEU * portee * (note / 70) ** 2
             autres = marche.poids_lancements - portee
-            f_conc = 1 / (1 + 0.2 * max(0.0, autres) / portee)
+            studios = max(1, len(marche.actives))
+            f_conc = 1 / (1 + 0.2 * min(1.0, 5 / studios) * max(0.0, autres) / portee)
             f_conf = 1.3 if marche.confinement else 1.0
             ventes = ((p.wishlists * conversion(note) + organique) * f_prix * f_conc * marche.conjoncture
                       * e.portee * f_conf * r.uniform(0.85, 1.15))
@@ -1611,7 +1667,7 @@ class ActiviteJeu(Activite):
             return 0.0
         lib, _, prix_ref, portee = ENVERGURES[p.envergure]
         note = note_attendue(p.qualite, 1.0)
-        lancement = p.wishlists * conversion(note) + e.notoriete * 35 * portee * (note / 70) ** 2
+        lancement = p.wishlists * conversion(note) + e.notoriete * ORGANIQUE_JEU * portee * (note / 70) ** 2
         vie = lancement * prix_ref * 3 * 0.7
         return vie * 0.35 * (0.3 + 0.7 * min(1.0, p.avancement))
 
@@ -1996,7 +2052,7 @@ class ActiviteAero(Activite):
                 "utilisation": self.charge_mois, "manques": 0.0, "messages": msgs}
 
     def ajuster_valeur(self, ev):
-        return ev + 0.12 * self.carnet()
+        return ev + CARNET_AERO * self.carnet()
 
     def levee_possible(self):
         return len(self.e.mois_reels()) >= 3
@@ -2338,7 +2394,7 @@ class ActiviteEnergie(Activite):
             ebitda += rev - om * 12
         ebitda -= (e.s.loyer + e.s.salaire_dirigeant + e.masse_salariale() + e.s.frais_generaux) * 12
         travaux = sum(c.capex for c in self.centrales if c.etat == "travaux")
-        return max(0.0, ebitda * 13) + travaux + 1_500_000 * len(self.projets)
+        return max(0.0, ebitda * EBITDA_ENERGIE) + travaux + 1_500_000 * len(self.projets)
 
     def ajuster_valeur(self, ev):
         return self.valeur_parc(getattr(self.e, "marche_ref", None))
@@ -2359,7 +2415,8 @@ class ActiviteEnergie(Activite):
         e = self.e
         for p in list(self.projets):
             f = self.financement(p)
-            if f["dette"] and e.tresorerie > f["fonds_propres"] + 6 * e.charges_fixes():
+            service = e.charges_fixes() + sum(p.mensualite for p in e.prets)   # l'hiver, le soleil ne paie pas tout
+            if f["dette"] and e.tresorerie > f["fonds_propres"] + 6 * service:
                 self.construire(p)
                 marche.nouvelles.append(f"⚡ {e.nom} lance la construction de « {p.nom} ».")
                 break
@@ -2389,7 +2446,7 @@ class ActiviteEnergie(Activite):
                  "detail": (f"+{mw_t:.0f} MW en construction" if mw_t else f"{len(self.projets)} projet(s) prêt(s)"),
                  "serie": [h.get("kpi", {}).get("mw", 0.0) for h in reels], "couleur": None},
                 {"titre": "Rendement du capital (ROIC)", "valeur": f"{self.roic() * 100:.1f} %".replace(".", ","),
-                 "detail": (f"marché {m.spot:.0f} €/MWh · taux {fmt_taux(m.taux_ref)}" if m else ""),
+                 "detail": (f"électricité à {m.spot:.0f} €/MWh" if m else ""),
                  "serie": [h.get("kpi", {}).get("roic", 0.0) for h in reels], "couleur": None}]
 
     def jauge(self):
@@ -3498,13 +3555,14 @@ class Entreprise:
         self.equipe, self.abonnes = [], 0.0
 
     # ------------------------------------------------------------ pilotage automatique (concurrents)
-    def burn(self) -> float:
+    def burn(self, avec_investissements: bool = True) -> float:
         """Ce que l'entreprise brûle chaque mois (hors financement), en moyenne sur 3 mois ; 0 si elle gagne de
         l'argent."""
         der = self.mois_reels()[-3:]
         if not der:
             return self.charges_fixes()
-        flux = sum(sum(h["flux"][k] for k in FLUX_EXPLOITATION + ("investissements",)) for h in der) / len(der)
+        cles = FLUX_EXPLOITATION + (("investissements",) if avec_investissements else ("remboursements",))
+        flux = sum(sum(h["flux"][k] for k in cles) for h in der) / len(der)
         return max(0.0, -flux)
 
     def decider(self, marche: "Marche", force: float) -> None:
@@ -3515,12 +3573,14 @@ class Entreprise:
         fixes = self.charges_fixes()
         if self.tresorerie < 2 * fixes and self.capacite_emprunt() >= fixes:
             self.emprunter(min(self.capacite_emprunt(), 6 * fixes))
-        brule = self.burn()
+        # levée calibrée sur les dépenses courantes (les grands investissements se financent par emprunt)
+        brule = self.burn(avec_investissements=False)
         horizon = 12 if st.cle == "startup" else 8
         if brule > 0 and (self.tresorerie + self.placements) < horizon * brule:
             c = self.conditions_levee()
             if c:
-                self.lever(min(c["maxi"], max(c["mini"], 18 * brule)))
+                besoin = 18 * brule - self.tresorerie - self.placements
+                self.lever(min(c["maxi"], max(c["mini"], besoin)))
                 marche.nouvelles.append(f"💼 {self.nom} lève des fonds.")
         # copie les investissements du joueur qui semblent lui réussir
         j = marche.joueur
@@ -3552,9 +3612,21 @@ class Entreprise:
 
 # =============================================================================
 class Marche:
+    # valeurs par défaut : les parties sauvegardées avant le mode battle royale restent lisibles
+    mode, zone_k, zones, place_joueur, valeur_sortie, depart = "classique", 0, 12, None, 0.0, 4
+    feed: list = []
     def __init__(self, nom_joueur: str, secteur: str, pret_initial: float = 0.0, nb_concurrents: int = 3,
-                 difficulte: str = "Normal", graine: int | None = None, duree: int = DUREE):
+                 difficulte: str = "Normal", graine: int | None = None, duree: int = DUREE,
+                 mode: str = "classique"):
         self.rng = random.Random(graine)
+        self.mode = mode
+        if mode == "br":
+            duree, nb_concurrents = BR_DUREE, BR_CONCURRENTS
+        self.feed: list[tuple[int, str]] = []      # fil d'actualité de l'arène : (mois, texte)
+        self.zone_k = 0
+        self.zones = max(1, 1 + (duree - BR_PREMIERE_ZONE) // BR_ZONE)
+        self.place_joueur: int | None = None
+        self.valeur_sortie = 0.0
         self.s = SECTEURS[secteur]
         self.force = DIFFICULTES.get(difficulte, 1.0)
         self.difficulte = difficulte
@@ -3585,12 +3657,23 @@ class Marche:
         self.joueur = Entreprise(nom_joueur or "Ma Boîte", self.s, COULEURS[0], APPORT, pret_initial, rng=self.rng)
         self.joueur.marche_ref = self
         self.entreprises = [self.joueur]
-        noms = list(self.s.noms)
-        self.rng.shuffle(noms)
-        ordre = ["equilibre", "lowcost", "premium", "startup", "lowcost"]
+        if mode == "br":
+            noms = noms_battle_royale(self.s, self.rng, nb_concurrents + 1)
+        else:
+            noms = list(self.s.noms)
+            self.rng.shuffle(noms)
+        ordre = ["equilibre", "lowcost", "premium", "startup"]
+        nb_concurrents = max(0, min(BR_CONCURRENTS if mode == "br" else MAX_CONCURRENTS, nb_concurrents))
+        self.nb_initial = nb_concurrents
+        # nombreux concurrents : le marché est plus grand (plus de clients), mais chacun en a une part un peu
+        # plus petite qu'à 4 ; sans cela, dans les secteurs à marché fixe (industrie), tout le monde ferait faillite
+        base = lambda n: (1 + self.s.extension * (n - 1)) / n
+        n = nb_concurrents + 1
+        self.echelle_marche = max(1.0, ECHELLE_MARCHE * base(4) / base(n)) if n > 4 else 1.0
         for i in range(nb_concurrents):
-            self.ajouter_concurrent(noms[i], STRATEGIES[ordre[i]])
-        self.noms_libres = noms[nb_concurrents:]
+            self.ajouter_concurrent(noms[i], STRATEGIES[ordre[i % len(ordre)]])
+        self.noms_libres = [] if mode == "br" else noms[nb_concurrents:]
+        self.depart = len(self.entreprises)
 
     def ajouter_concurrent(self, nom: str, st: Strategie) -> Entreprise:
         s = self.s
@@ -3875,7 +3958,10 @@ class Marche:
         for ao in [a for a in self.appels if a.decision <= t]:
             self.appels.remove(ao)
             self.attribuer(ao)
-        if r.random() < 0.40 * self.conjoncture + 0.05 * len(self.actives):
+        # le nombre d'appels d'offres suit la taille du secteur : chacun garde sa chance d'en gagner
+        taux = AO_PAR_ACTEUR * max(4, len(self.actives)) * self.conjoncture
+        nombre = int(taux) + (1 if r.random() < taux - int(taux) else 0)
+        for _ in range(nombre):
             objet, k = r.choice(OBJETS_AERO)
             montant = round(math.exp(r.uniform(math.log(2_500_000), math.log(24_000_000))) * k / 100_000) * 100_000
             duree = int(min(30, 12 + montant / 1_500_000))
@@ -3992,9 +4078,10 @@ class Marche:
         s, r = self.s, self.rng
         attraits = [e.attrait() for e in act]
         n = len(act)
-        part_totale = (s.part_max * (1 + s.extension * (n - 1))
+        acteurs = n - 1
+        part_totale = (s.part_max * (1 + s.extension * acteurs)
                        * (1 - math.exp(-s.saturation * sum(attraits) / max(1, n))))
-        volume = (s.marche * part_totale * s.saison[mois_cal] * self.conjoncture
+        volume = (s.marche * getattr(self, "echelle_marche", 1.0) * part_totale * s.saison[mois_cal] * self.conjoncture
                   * (sum(e.portee for e in act) / max(1, n)) ** 0.5)
         poids = [a ** 1.3 for a in attraits]
         total = sum(poids) or 1
@@ -4009,6 +4096,90 @@ class Marche:
                     e.abonnes *= 1 - 0.05 * (1 - f_conf)
             demandes[e] = dem
         return demandes
+
+    # ------------------------------------------------------------ battle royale
+    def cible_zone(self, k: int) -> int:
+        """Nombre d'entreprises encore debout après la k-ième zone (la dernière n'en laisse qu'une)."""
+        return max(1, round(self.depart * (1 - k / self.zones) ** 1.5))
+
+    def mois_avant_zone(self) -> int:
+        if self.mois < BR_PREMIERE_ZONE:
+            return BR_PREMIERE_ZONE - self.mois
+        return BR_ZONE - (self.mois - BR_PREMIERE_ZONE) % BR_ZONE
+
+    @staticmethod
+    def score_br(e: "Entreprise") -> float:
+        """Classement de l'arène : la valeur créée par euro investi (lever des fonds n'y change presque rien)."""
+        return (e.valorisation() + e.dividendes_verses) / max(1.0, e.capital) if e.actif else 0.0
+
+    def survivantes(self) -> list["Entreprise"]:
+        return sorted(self.actives, key=self.score_br, reverse=True)
+
+    def tour_arene(self) -> None:
+        """Fin de mois dans l'arène : fil d'actualité, zone, butin, victoire."""
+        mois = self.mois
+        for n in self.nouvelles:
+            if n[:1] in "💀🤝🏢":
+                self.feed.append((mois, n))
+        if (self.mois >= BR_PREMIERE_ZONE and (self.mois - BR_PREMIERE_ZONE) % BR_ZONE == 0 and not self.fin
+                and self.zone_k < self.zones):
+            self.zone()
+        # le joueur est sorti (faillite, vente) : sa place est celle des survivants + 1
+        if self.fin and self.place_joueur is None:
+            self.place_joueur = 1 + sum(1 for e in self.concurrents if e.actif)
+        if not self.fin and self.joueur.actif and not any(e.actif for e in self.concurrents):
+            self.fin, self.place_joueur = "victoire", 1
+            self.nouvelles.append("🏆 VICTOIRE ! Votre entreprise est la dernière debout dans l'arène.")
+            self.feed.append((mois, "🏆 Victoire royale : " + self.joueur.nom))
+        # dans une arène de 100, on ne raconte au joueur que ce qui le concerne ou fait basculer la partie
+        autres = {e.nom for e in self.concurrents}
+        self.nouvelles = [n for n in self.nouvelles if n[:1] in "🌀📦🏆" or not any(nom in n for nom in autres)]
+        self.feed = self.feed[-200:]
+
+    def zone(self) -> None:
+        self.zone_k += 1
+        vivants = self.survivantes()
+        cible = self.cible_zone(self.zone_k)
+        elimines = vivants[cible:]
+        if not elimines:
+            return
+        j = self.joueur
+        for rang, e in enumerate(elimines, cible + 1):
+            if e.joueur:
+                self.valeur_sortie = e.valorisation()
+                self.place_joueur = rang
+                self.fin = "elimine"
+            e.actif = False
+            e.fin_raison = f"éliminée par la zone ({rang}e)"
+            self.feed.append((self.mois, f"💀 {e.nom} éliminée par la zone ({rang}e)"))
+        self.nouvelles.append(f"🌀 La zone se resserre : {len(elimines)} entreprise(s) éliminée(s), il en reste {cible}."
+                              + ("" if self.fin == "elimine" else f" Vous êtes {vivants.index(j) + 1}e."))
+        self.feed.append((self.mois, f"🌀 Zone {self.zone_k}/{self.zones} : il reste {cible} entreprises"))
+        if not self.fin and cible > 1:
+            # le butin : les clients et les équipes des meilleures éliminées sont à reprendre à bas prix
+            for e in sorted(elimines, key=lambda e: -(e.historique[-2]["ca"] if len(e.historique) > 1 else 0))[:2]:
+                f = self.butin(e)
+                if f:
+                    self.opportunites.append(f)
+                    self.nouvelles.append(f"📦 Butin : la clientèle et les équipes de {e.nom} sont à reprendre pour "
+                                          f"{fmt(f.prix)} (page Rachats), pendant 2 mois.")
+                    self.feed.append((self.mois, f"📦 Butin : {e.nom}, {fmt_c(f.prix)}"))
+
+    def butin(self, e: "Entreprise") -> "Filiale | None":
+        s = self.s
+        reels = e.mois_reels()[-3:]
+        ca = sum(h["ca"] for h in reels) / max(1, len(reels))
+        if ca <= 0 and s.modele not in ("biotech", "jeu", "energie"):
+            return None
+        ca = max(ca, s.ca_cible) * 0.6
+        texte, effets = effet_cible(s.modele, "niche")
+        f = Filiale(f"Actifs de {e.nom}", "niche", "Clientèle et équipes d'une éliminée", round(ca / 1000) * 1000,
+                    0.05, max(1, min(e.salaries, 8)), 0.0, 0.0, round(e.immo_nette * 0.2 / 1000) * 1000, 0.0,
+                    dispo=2, effet="Butin : " + texte[0].lower() + texte[1:], effets=dict(effets))
+        pas = 10 ** max(3, int(math.log10(max(f.valeur(s.multiple), 1))) - 1)
+        f.prix = max(15_000, round(f.valeur(s.multiple) * 0.5 / pas) * pas)       # à moitié prix
+        f.butin = True
+        return f
 
     def jouer_mois(self, prix: float, marketing: float, qualite_inv: float) -> list[str]:
         s, r = self.s, self.rng
@@ -4122,10 +4293,13 @@ class Marche:
                     break
         self.flux_opportunites()
         # nouvel entrant de temps en temps
-        if (self.noms_libres and 4 <= self.mois <= self.duree * 0.7 and len(self.actives) < 5 and r.random() < 0.04):
+        if (self.noms_libres and 4 <= self.mois <= self.duree * 0.7 and len(self.actives) < max(5, getattr(self, "nb_initial", 3) + 1)
+                and len(self.entreprises) <= MAX_CONCURRENTS + 2 and r.random() < 0.04):
             st = r.choice(list(STRATEGIES.values()))
             e = self.ajouter_concurrent(self.noms_libres.pop(0), st)
             self.nouvelles.append(f"🆕 Nouveau concurrent : {e.nom} ({st.nom.lower()} : {st.description}).")
+        if self.mode == "br":
+            self.tour_arene()
         if not self.fin and self.mois >= self.duree:
             self.fin = "terme"
         if not self.fin and not [e for e in self.concurrents if e.actif] and self.concurrents:
@@ -4553,6 +4727,8 @@ class Marche:
         return sorted(self.entreprises, key=lambda e: (e.actif, e.valorisation()), reverse=True)
 
     def rang_joueur(self) -> int:
+        if self.mode == "br" and self.place_joueur is not None:
+            return self.place_joueur
         if self.fin == "faillite":
             return len(self.entreprises)
         if self.fin == "rachat":                  # vendue : classée selon le prix obtenu
@@ -4567,6 +4743,8 @@ class Marche:
             valeur = 0.0
         elif self.fin == "rachat":
             valeur = self.prix_rachat
+        elif self.fin == "elimine":
+            valeur = self.valeur_sortie
         else:
             valeur = j.valorisation()
         parts = valeur * j.part_fondateur
@@ -4588,10 +4766,21 @@ class Marche:
                                 "restent à vous.")
         else:
             titre, commentaire = next((t, c) for seuil, t, c in paliers if moic < seuil)
+        place = self.rang_joueur()
+        if self.mode == "br":
+            n = self.depart
+            titre, commentaire = next((t, c) for seuil, t, c in [
+                (1, "Victoire royale 🏆", f"Dernière entreprise debout : vous avez battu les {n - 1} autres !"),
+                (3, "Sur le podium", "Si près du sommet… La prochaine sera la bonne."),
+                (10, "Top 10", f"Parmi les 10 meilleures sur {n} : une vraie performance."),
+                (25, "Top 25", "Vous avez tenu longtemps face à la zone. Encore un effort !"),
+                (n, "Éliminé", "La zone a eu raison de vous. Gardez votre valeur au-dessus de la coupe, et "
+                               "surveillez le compte à rebours.")] if place <= seuil)
         return {"titre": titre, "commentaire": commentaire, "gain": gain, "multiple": gain / APPORT, "moic": moic,
+                "mode": self.mode, "place": place, "depart": self.depart,
                 "valeur": valeur, "capital": j.capital,
                 "mois": self.mois, "salaries": j.salaries, "ca": j.ca_annualise(), "impots": j.impots_payes,
-                "part": j.part_fondateur, "rang": self.rang_joueur(), "nb": len(self.entreprises),
+                "part": j.part_fondateur, "rang": place, "nb": len(self.entreprises) if self.mode != "br" else self.depart,
                 "parts": parts, "dividendes": j.patrimoine, "note": j.note}
 
     # ------------------------------------------------------------ prévisionnel
