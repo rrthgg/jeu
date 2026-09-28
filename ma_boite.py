@@ -40,22 +40,126 @@ def charger_pil():
 
 charger_pil()
 
-DOSSIER_SAUVEGARDES = Path(__file__).resolve().parent / "sauvegardes"
+# transformé en logiciel (.exe avec PyInstaller) : les sauvegardes vont à côté du .exe, pas dans son dossier temporaire
+EST_EXE = bool(getattr(__import__("sys"), "frozen", False))
+DOSSIER_JEU = Path(__import__("sys").executable if EST_EXE else __file__).resolve().parent
+DOSSIER_SAUVEGARDES = DOSSIER_JEU / "sauvegardes"
 VERSION_SAUVEGARDE = 6
 DUREE_JEU = {"n": 36}      # durée de la partie en cours (mois)
 
 # ---------------------------------------------------------------- thème sombre
-FOND, BARRE = "#050505", "#000000"
-PANNEAU, PANNEAU2, BORD = "#121212", "#1e1e1e", "#2a2a2a"
-TXT, MUT, DISCRET = "#f2f2f2", "#9e9e9e", "#616161"
-ACC, ACC_SURVOL = "#3b82f6", "#60a5fa"
+FOND, BARRE = "#000000", "#09090b"
+PANNEAU, PANNEAU2, BORD = "#131316", "#1d1d22", "#27272d"
+TXT, MUT, DISCRET = "#fafafa", "#a1a1aa", "#5b5b66"
+ACC, ACC_SURVOL = "#6366f1", "#818cf8"
 VERT, ROUGE, AMBRE, VIOLET = "#34d399", "#f87171", "#fbbf24", "#22d3ee"
-GRILLE = "#1f1f1f"
-POLICE = "Segoe UI"
+GRILLE = "#1c1c21"
+NAV_ACTIF = "#17171c"
+POLICE = "Segoe UI"            # remplacée au démarrage par la meilleure police disponible
+POLICE_TITRE = "Segoe UI"
+
+
+def choisir_polices(racine):
+    """Segoe UI Variable (Windows 11) si elle existe, sinon Segoe UI, Inter… : le rendu le plus net possible."""
+    global POLICE, POLICE_TITRE
+    import tkinter.font as tkfont
+    dispo = set(tkfont.families(racine))
+    texte = ("Segoe UI Variable Text", "Inter", "Segoe UI", "Helvetica Neue", "DejaVu Sans", "Arial")
+    titre = ("Segoe UI Variable Display", "Inter", "Segoe UI Semibold", "Segoe UI", "Helvetica Neue", "DejaVu Sans")
+    POLICE = next((p for p in texte if p in dispo), POLICE)
+    POLICE_TITRE = next((p for p in titre if p in dispo), POLICE)
 
 
 def police(taille=10, gras=False):
-    return (POLICE, taille, "bold") if gras else (POLICE, taille)
+    famille = POLICE_TITRE if taille >= 14 else POLICE
+    return (famille, taille, "bold") if gras else (famille, taille)
+
+
+def melange(c1, c2, t):
+    """Couleur intermédiaire : t = 0 → c1, t = 1 → c2."""
+    a = [int(c1[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(c2[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(a, b))
+
+
+# ---------------------------------------------------------------- coins arrondis
+_ARCS = {"nw": ((0, 0, 2, 2), 90, 0, 0), "ne": ((-1, 0, 1, 2), 0, 1, 0), "sw": ((0, -1, 2, 1), 180, 0, 1),
+         "se": ((-1, -1, 1, 1), 270, 1, 1)}
+
+
+def arrondir(w, r=10):
+    """Arrondit les coins d'un cadre ou d'une étiquette : quatre petits masques de la couleur du fond parent."""
+    px = py = 0
+    try:
+        px, py = int(str(w.cget("padx"))), int(str(w.cget("pady")))
+        r = min(r, max(px, py, 3))
+    except (tk.TclError, ValueError):
+        pass
+    # dans un cadre, place() compte à partir de l'intérieur de la marge : on recule d'autant
+    ox, oy = (px, py) if w.winfo_class() == "Frame" else (0, 0)
+    try:
+        bord = int(str(w.cget("bd"))) + int(str(w.cget("highlightthickness")))
+    except (tk.TclError, ValueError):
+        bord = 0
+    ox, oy = ox + bord, oy + bord
+    for c in getattr(w, "_coins", []):
+        c.destroy()
+    w._coins = []
+    for coin, (_, _, rx, ry) in _ARCS.items():
+        c = tk.Canvas(w, width=r, height=r, highlightthickness=0, bd=0)
+        c.place(relx=rx, rely=ry, anchor=coin, x=ox if rx else -ox, y=oy if ry else -oy)
+        c._coin, c._r = coin, r
+        w._coins.append(c)
+    peindre_coins(w)
+    return w
+
+
+def peindre_coins(w):
+    coins = getattr(w, "_coins", None)
+    if not coins:
+        return
+    try:
+        fond, moi = w.master.cget("bg"), w.cget("bg")
+    except tk.TclError:
+        return
+    for c in coins:
+        r = c._r
+        (x0, y0, x1, y1), debut, _, _ = _ARCS[c._coin]
+        c.delete("all")
+        c.config(bg=fond)
+        c.create_arc(x0 * r, y0 * r, x1 * r, y1 * r, start=debut, extent=90, style="pieslice", fill=moi, outline=moi)
+        c.tk.call("raise", c._w)          # Canvas.lift() désigne autre chose : on remonte la fenêtre
+
+
+def teinter(w, couleur, enfants=()):
+    """Change la couleur d'un élément arrondi (et de ses étiquettes) en gardant ses coins."""
+    w.config(bg=couleur)
+    for e in enfants:
+        e.config(bg=couleur)
+    peindre_coins(w)
+
+
+def logo(parent, taille=34, fond=BARRE):
+    """Pastille « MB » en dégradé indigo → cyan."""
+    c = tk.Canvas(parent, width=taille, height=taille, bg=fond, highlightthickness=0)
+    r = taille * 0.28
+    for y in range(taille):
+        dy = max(0.0, r - y - 0.5, y + 0.5 - (taille - r))
+        retrait = r - (max(0.0, r * r - dy * dy)) ** 0.5 if dy else 0.0
+        c.create_line(retrait, y, taille - retrait, y, fill=melange(ACC, VIOLET, y / taille))
+    c.create_text(taille / 2, taille / 2, text="MB", fill="white", font=(POLICE_TITRE, -int(taille * 0.38), "bold"))
+    return c
+
+
+def barre_arrondie(c, part, couleur, piste):
+    """Barre de progression fine aux bouts arrondis dans un canevas."""
+    c.update_idletasks()
+    w, h = max(c.winfo_width(), 10), int(str(c.cget("height")))
+    c.delete("all")
+    y = h / 2
+    c.create_line(h / 2, y, w - h / 2, y, fill=piste, width=h, capstyle="round")
+    if part > 0:
+        c.create_line(h / 2, y, h / 2 + (w - h) * min(1.0, part), y, fill=couleur, width=h, capstyle="round")
 
 
 def euros(x, signe=False):
@@ -133,28 +237,31 @@ def lister_sauvegardes():
 
 # ---------------------------------------------------------------- composants
 class Bouton(tk.Label):
-    STYLES = {"primaire": (ACC, ACC_SURVOL, "white"), "secondaire": (PANNEAU2, "#2c2c2c", TXT),
-              "fantome": (PANNEAU, PANNEAU2, MUT), "vert": ("#1f9d6e", "#27b981", "white"),
-              "danger": ("#2a1414", "#3d1a1a", ROUGE)}
+    STYLES = {"primaire": (ACC, ACC_SURVOL, "white"), "secondaire": (PANNEAU2, "#2a2a31", TXT),
+              "fantome": (PANNEAU, PANNEAU2, MUT), "vert": ("#059669", "#10b981", "white"),
+              "danger": ("#2a1216", "#3b1820", ROUGE)}
+    INACTIF = "#18181b"
 
     def __init__(self, parent, texte, commande=None, style="secondaire", taille=10, padx=14, pady=7, **kw):
         self.fond, self.survol, self.encre = self.STYLES[style]
         super().__init__(parent, text=texte, bg=self.fond, fg=self.encre, font=police(taille, True),
                          padx=padx, pady=pady, cursor="hand2", **kw)
         self.commande, self.actif = commande, True
-        self.bind("<Enter>", lambda _: self.actif and self.config(bg=self.survol))
-        self.bind("<Leave>", lambda _: self.config(bg=self.fond if self.actif else "#1a1a1a"))
+        arrondir(self, 7)
+        self.bind("<Enter>", lambda _: self.actif and teinter(self, self.survol))
+        self.bind("<Leave>", lambda _: teinter(self, self.fond if self.actif else self.INACTIF))
         self.bind("<Button-1>", lambda _: self.actif and self.commande and self.commande())
 
     def activer(self, oui=True):
         self.actif = oui
-        self.config(bg=self.fond if oui else "#1a1a1a", fg=self.encre if oui else DISCRET,
-                    cursor="hand2" if oui else "arrow")
+        self.config(fg=self.encre if oui else DISCRET, cursor="hand2" if oui else "arrow")
+        teinter(self, self.fond if oui else self.INACTIF)
 
 
 class Carte(tk.Frame):
     def __init__(self, parent, titre=None, sous_titre=None, padx=16, pady=12, **kw):
-        super().__init__(parent, bg=PANNEAU, highlightthickness=1, highlightbackground=BORD, padx=padx, pady=pady, **kw)
+        super().__init__(parent, bg=PANNEAU, padx=padx, pady=pady, **kw)
+        arrondir(self, 12)
         if titre:
             tk.Label(self, text=titre, font=police(12, True), bg=PANNEAU, fg=TXT).pack(anchor="w")
         if sous_titre:
@@ -170,10 +277,11 @@ class Tuile(tk.Frame):
     """Indicateur clé : titre, grande valeur, variation et mini-courbe."""
 
     def __init__(self, parent, titre):
-        super().__init__(parent, bg=PANNEAU, highlightthickness=1, highlightbackground=BORD, padx=14, pady=10)
+        super().__init__(parent, bg=PANNEAU, padx=16, pady=12)
+        arrondir(self, 12)
         self.l_titre = tk.Label(self, text=titre.upper(), font=police(8, True), bg=PANNEAU, fg=MUT, anchor="w")
         self.l_titre.pack(anchor="w", fill="x")
-        self.valeur = tk.Label(self, font=police(16, True), bg=PANNEAU, fg=TXT, text="—")
+        self.valeur = tk.Label(self, font=police(18, True), bg=PANNEAU, fg=TXT, text="—")
         self.valeur.pack(anchor="w")
         bas = tk.Frame(self, bg=PANNEAU)
         bas.pack(fill="x")
@@ -196,6 +304,7 @@ class Tuile(tk.Frame):
             pts = []
             for i, v in enumerate(serie):
                 pts += [3 + i * 62 / (len(serie) - 1), 23 - (v - lo) / ecart * 20]
+            c.create_polygon(3, 25, *pts, pts[-2], 25, fill=melange(PANNEAU, couleur, 0.18), outline="")
             c.create_line(*pts, fill=couleur, width=2, smooth=True)
             c.create_oval(pts[-2] - 2.5, pts[-1] - 2.5, pts[-2] + 2.5, pts[-1] + 2.5, fill=couleur, outline="")
 
@@ -210,11 +319,11 @@ class Anneau(tk.Canvas):
     def maj(self, v, texte, couleur):
         self.delete("all")
         t, m, o = self.t, 8, 22
-        self.create_oval(o + m, m, o + t - m, t - m, outline=PANNEAU2, width=8)
+        self.create_oval(o + m, m, o + t - m, t - m, outline="#222228", width=7)
         part = max(0.0, min(1.0, v / 100))
         if part > 0:
             self.create_arc(o + m, m, o + t - m, t - m, start=90, extent=-359.9 * part, style="arc",
-                            outline=couleur, width=8)
+                            outline=couleur, width=7)
         self.create_text(o + t / 2, t / 2, text=texte, fill=TXT, font=police(12, True))
         self.create_text(o + t / 2, t + 9, text=self.titre, fill=MUT, font=police(9))
 
@@ -224,10 +333,12 @@ class Segments(tk.Frame):
 
     def __init__(self, parent, options, valeur, commande=None):
         super().__init__(parent, bg=PANNEAU2, padx=3, pady=3)
+        arrondir(self, 8)
         self.var, self.boutons, self.commande = valeur, {}, commande
         for val, lib in options:
-            b = tk.Label(self, text=lib, font=police(10, True), padx=12, pady=5, cursor="hand2")
+            b = tk.Label(self, text=lib, font=police(10, True), padx=12, pady=5, cursor="hand2", bg=PANNEAU2)
             b.pack(side="left", padx=1)
+            arrondir(b, 6)
             b.bind("<Button-1>", lambda _, v=val: self.choisir(v))
             self.boutons[val] = b
         self.peindre()
@@ -241,7 +352,8 @@ class Segments(tk.Frame):
     def peindre(self):
         for v, b in self.boutons.items():
             actif = v == self.var.get()
-            b.config(bg=ACC if actif else PANNEAU2, fg="white" if actif else MUT)
+            b.config(fg="white" if actif else MUT)
+            teinter(b, ACC if actif else PANNEAU2)
 
 
 def curseur(parent, titre, var, mini, maxi, pas, fmt, rappel=None, fond=PANNEAU):
@@ -256,9 +368,9 @@ def curseur(parent, titre, var, mini, maxi, pas, fmt, rappel=None, fond=PANNEAU)
         if rappel:
             rappel()
     tk.Scale(parent, from_=mini, to=maxi, resolution=pas, orient="horizontal", variable=var, showvalue=False,
-             bg=ACC, fg=TXT, troughcolor="#2c2c2c", activebackground=ACC_SURVOL, highlightthickness=0, bd=0,
-             sliderrelief="flat", sliderlength=16, width=12, cursor="hand2", command=changer
-             ).pack(fill="x", pady=(5, 0))
+             bg=ACC, fg=TXT, troughcolor="#26262c", activebackground=ACC_SURVOL, highlightthickness=0, bd=0,
+             sliderrelief="flat", sliderlength=18, width=9, cursor="hand2", command=changer
+             ).pack(fill="x", pady=(6, 0))
     return val
 
 
@@ -303,17 +415,21 @@ def graphe_finances(c, hist):
     vmax = max(max(cas), max(tre), 1)
     vmin = min(0, min(tre), min(res))
     y, lg = axes(c, w, h, g, d, t, b, vmin, vmax, lambda v: M.fmt_c(v))
-    c.create_line(g, y(0), w - d, y(0), fill="#474747")
+    pts0 = [v for i, x in enumerate(tre) for v in (g + (i + 0.5) * lg, y(x))]
+    if len(pts0) >= 4:
+        c.create_polygon(pts0[0], y(max(vmin, 0)), *pts0, pts0[-2], y(max(vmin, 0)),
+                         fill=melange(PANNEAU, ACC, 0.16), outline="")
+    c.create_line(g, y(0), w - d, y(0), fill="#3f3f46")
     for i, (ca, r) in enumerate(zip(cas, res)):
         x0 = g + i * lg + 2
-        c.create_rectangle(x0, y(ca), x0 + lg - 4, y(0), fill="#343434", outline="")
+        c.create_rectangle(x0, y(ca), x0 + lg - 4, y(0), fill="#2a2a31", outline="")
         c.create_rectangle(x0 + lg * 0.3, y(max(r, 0)), x0 + lg * 0.7 - 4, y(min(r, 0)),
                            fill=VERT if r >= 0 else ROUGE, outline="")
     pts = [v for i, x in enumerate(tre) for v in (g + (i + 0.5) * lg, y(x))]
     if len(pts) >= 4:
         c.create_line(*pts, fill=ACC, width=2.5, smooth=True)
     c.create_oval(pts[-2] - 4, pts[-1] - 4, pts[-2] + 4, pts[-1] + 4, fill=ACC, outline=PANNEAU, width=2)
-    legende(c, g, 6, [("#343434", "Chiffre d'affaires", False), (VERT, "Résultat", False),
+    legende(c, g, 6, [("#3a3a42", "Chiffre d'affaires", False), (VERT, "Résultat", False),
                       (ACC, "Trésorerie", False)], w)
 
 
@@ -596,7 +712,8 @@ COUL_K = {"vert": VERT, "rouge": ROUGE, None: TXT}
 
 
 def mini_kpi(parent, titre, valeur, detail="", couleur=TXT, fond=PANNEAU):
-    c = tk.Frame(parent, bg=fond, highlightthickness=1, highlightbackground=BORD, padx=12, pady=8)
+    c = tk.Frame(parent, bg=fond, padx=14, pady=10)
+    arrondir(c, 12)
     tk.Label(c, text=titre.upper(), font=police(8, True), bg=fond, fg=MUT).pack(anchor="w")
     tk.Label(c, text=valeur, font=police(14, True), bg=fond, fg=couleur).pack(anchor="w")
     if detail:
@@ -737,10 +854,17 @@ def legende_moic(m):
 
 
 def emoji_resultat(m, b):
+    if b.get("mode") == "br":
+        p = b["place"]
+        return "🏆" if p == 1 else "🥈" if p == 2 else "🥉" if p == 3 else "🔥" if p <= 10 else "💀"
     if m.fin == "faillite":
         return "💀"
     moic = b["moic"]
     return "📉" if moic < 1 else "✅" if moic < 2 else "🚀" if moic < 5 else "🏆" if moic < 15 else "🦄"
+
+
+def place_txt(p):
+    return f"{p}{'re' if p == 1 else 'e'}"
 
 
 def resume_partage(m, b):
@@ -755,6 +879,13 @@ def resume_partage(m, b):
     blocs = "▁▂▃▄▅▆▇█"
     courbe = "".join(blocs[max(0, min(7, int(v / haut * 7.999)))] for v in ech)
     duree = M.DUREES_PARTIE.get(m.duree, f"{m.duree} mois")
+    if b.get("mode") == "br":
+        return "\n".join([
+            f"Ma Boîte — BATTLE ROYALE · {s.nom} (tiré au sort)",
+            f"{emoji_resultat(m, b)} {sans_emoji(b['titre'])} : {place_txt(b['place'])} sur {b['depart']}",
+            f"Valeur {court(b['valeur'])} · × {b['moic']:.1f} l'argent investi".replace(".", ",", 1),
+            f"{courbe}",
+            "Et vous, vous tenez combien de zones ? #MaBoîte"])
     rang = (f" · {b['rang']}{'re' if b['rang'] == 1 else 'e'} sur {b['nb']}" if b["nb"] > 1 else " · en solo")
     return "\n".join([
         f"Ma Boîte — {s.nom} · {duree} · {m.difficulte}",
@@ -772,7 +903,11 @@ def dessiner_carte(m, b):
     _degrade_fond(img, _hex(FOND), _hex("#0a0e14"))
     d = ImageDraw.Draw(img)
     moic = b["moic"]
-    if m.fin == "faillite" or moic < 1:
+    br = b.get("mode") == "br"
+    if br:
+        coul = _hex(AMBRE if b["place"] <= 3 else VERT if b["place"] <= 10 else ACC_SURVOL if b["place"] <= 25
+                    else ROUGE)
+    elif m.fin == "faillite" or moic < 1:
         coul = _hex(ROUGE)
     elif moic < 3:
         coul = _hex(AMBRE)
@@ -783,18 +918,26 @@ def dessiner_carte(m, b):
 
     d.text((80, 64), "MA BOÎTE", font=_police_carte(30, True), fill=acc)
     duree_txt = M.DUREES_PARTIE.get(m.duree, f"{m.duree} mois")
-    entete = f"{duree_txt} · {m.difficulte}".upper()
+    entete = (f"BATTLE ROYALE · {m.difficulte}" if br else f"{duree_txt} · {m.difficulte}").upper()
     bbox = d.textbbox((0, 0), entete, font=_police_carte(22))
     d.text((W - 80 - (bbox[2] - bbox[0]), 70), entete, font=_police_carte(22), fill=mut)
     d.line([(80, 128), (W - 80, 128)], fill=bord, width=2)
 
     _centre(d, j.nom, 172, _police_carte(50, True), txt)
-    _centre(d, s.nom, 236, _police_carte(25), mut)
+    _centre(d, s.nom + (" (secteur tiré au sort)" if br else ""), 236, _police_carte(25), mut)
     _centre(d, sans_emoji(b["titre"]), 310, _police_carte(42, True), coul)
-    _centre(d, f"× {moic:.1f}".replace(".", ","), 380, _police_carte(150, True), coul)
-    _centre(d, legende_moic(m), 555, _police_carte(24), mut)
+    if br:
+        _centre(d, place_txt(b["place"]), 380, _police_carte(150, True), coul)
+        _centre(d, f"sur {b['depart']} entreprises", 555, _police_carte(26), mut)
+    else:
+        _centre(d, f"× {moic:.1f}".replace(".", ","), 380, _police_carte(150, True), coul)
+        _centre(d, legende_moic(m), 555, _police_carte(24), mut)
     y_suite = 600
-    if b["nb"] > 1:
+    if br:
+        _centre(d, f"× {moic:.1f} l'argent investi · {m.zone_k if m.fin == 'victoire' else max(0, m.zone_k - 1)}"
+                   f"/{m.zones} zones franchies".replace(".", ",", 1), y_suite, _police_carte(26, True), _hex(AMBRE))
+        y_suite += 46
+    elif b["nb"] > 1:
         _centre(d, f"{b['rang']}{'re' if b['rang'] == 1 else 'e'} sur {b['nb']} entreprises", y_suite, _police_carte(26, True), _hex(AMBRE))
         y_suite += 46
 
@@ -837,16 +980,390 @@ def dessiner_carte(m, b):
         d.text((x0 + 20, y2 + 18), lib, font=_police_carte(15, True), fill=mut)
         d.text((x0 + 20, y2 + 46), val, font=_police_carte(30, True), fill=txt)
 
-    _centre(d, "Et vous, vous feriez mieux ?   #MaBoîte", CARTE_H - 110, _police_carte(30, True), txt)
+    _centre(d, ("Et vous, vous tenez combien de zones ?   #MaBoîte" if br else
+                "Et vous, vous feriez mieux ?   #MaBoîte"), CARTE_H - 110, _police_carte(30, True), txt)
     _centre(d, f"Simulation d'entreprise · {s.nom} · {duree_txt}", CARTE_H - 60,
             _police_carte(18), mut)
     return img
+
+
+# ---------------------------------------------------------------- aide : glossaire, bulles, tutoriel, profil
+# (motifs cherchés dans le libellé, titre, définition, exemple) — du plus précis au plus général
+GLOSSAIRE = [
+    (("dette nette",), "Dette nette",
+     "Vos dettes financières moins votre trésorerie et vos placements : ce que vous devriez vraiment si vous "
+     "remboursiez tout demain.",
+     "1 M€ d'emprunts et 300 k€ en banque : 700 k€ de dette nette."),
+    (("gearing", "endettement"), "Endettement (gearing)",
+     "La dette nette rapportée aux capitaux propres. Au-delà de 1 à 2, les banques s'inquiètent.",
+     "700 k€ de dette nette pour 500 k€ de capitaux propres : gearing de 1,4."),
+    (("couverture des intérêts",), "Couverture des intérêts",
+     "Combien de fois l'EBE couvre les intérêts à payer. Sous 3, c'est fragile.",
+     "EBE de 90 k€ pour 10 k€ d'intérêts : couverture de 9."),
+    (("rentabilité des capitaux propres", "roe"), "Rentabilité des capitaux propres (ROE)",
+     "Le bénéfice annuel rapporté à l'argent des actionnaires.",
+     "100 k€ de bénéfice pour 500 k€ de capitaux propres : 20 %."),
+    (("votre part",), "Votre part du capital",
+     "La part de l'entreprise que vous possédez encore : elle baisse à chaque levée de fonds (dilution).",
+     "Vous aviez 75 %, vous levez 20 % : il vous reste 60 %."),
+    (("besoin en fonds de roulement", "bfr"), "Besoin en fonds de roulement (BFR)",
+     "L'argent bloqué dans le cycle de l'activité : stocks et factures clients pas encore payées, moins ce que vous "
+     "devez à vos fournisseurs.",
+     "Vos clients vous doivent 30 000 €, vous devez 10 000 € à vos fournisseurs : 20 000 € sont immobilisés."),
+    (("fonds de roulement",), "Fonds de roulement",
+     "Les ressources durables (capitaux propres, emprunts) qui restent une fois vos investissements financés.",
+     "Vous avez 500 k€ de capital et d'emprunts, votre matériel en vaut 300 k€ : fonds de roulement de 200 k€."),
+    (("excédent brut", "marge d'ebe", "ebe"), "EBE (excédent brut d'exploitation)",
+     "Ce que rapporte l'activité elle-même : ventes moins achats, salaires, loyer et frais, avant amortissements, "
+     "intérêts et impôt. C'est l'indicateur préféré des banquiers.",
+     "100 k€ de ventes, 40 k€ d'achats, 45 k€ de salaires et de frais : EBE de 15 k€."),
+    (("marge brute",), "Marge brute",
+     "Les ventes moins le coût direct de ce que vous avez vendu (matières, marchandises).",
+     "Vous vendez 50 € un produit acheté 30 € : 20 € de marge brute, soit 40 %."),
+    (("marge nette",), "Marge nette",
+     "Ce qu'il reste vraiment sur 100 € de ventes, une fois tout payé, impôt compris.",
+     "Marge nette de 5 % : sur 100 € vendus, 5 € de bénéfice."),
+    (("dotations", "amortissement"), "Amortissement",
+     "Un investissement s'use : son coût est étalé sur sa durée de vie au compte de résultat, sans sortie "
+     "d'argent chaque mois.",
+     "Une machine de 60 000 € amortie sur 5 ans coûte 1 000 € par mois au résultat."),
+    (("résultat d'exploitation",), "Résultat d'exploitation",
+     "L'EBE moins les amortissements : ce que gagne l'activité, usure du matériel comprise.",
+     "EBE de 15 k€, 5 k€ d'amortissements : résultat d'exploitation de 10 k€."),
+    (("résultat courant",), "Résultat courant avant impôt",
+     "Le résultat d'exploitation, plus les intérêts reçus, moins les intérêts payés.",
+     "10 k€ de résultat d'exploitation et 2 k€ d'intérêts d'emprunt : 8 k€."),
+    (("résultat exceptionnel",), "Résultat exceptionnel",
+     "Les gains et pertes hors de l'activité normale : amende, vente d'un bien, subvention d'investissement…",
+     "Vous revendez une filiale avec 50 k€ de plus-value : +50 k€ en exceptionnel."),
+    (("résultat net", "résultat du mois", "résultat en cours"), "Résultat net",
+     "Le bénéfice (ou la perte) final : toutes les ventes moins toutes les charges, impôt compris.",
+     "Ventes 100 k€, charges totales 92 k€ : résultat net de +8 k€."),
+    (("compte de résultat",), "Compte de résultat",
+     "Le film de la période : ce que l'entreprise a vendu, dépensé, et donc gagné ou perdu.",
+     "Sur l'année : 1 M€ de ventes, 900 k€ de charges, 100 k€ de bénéfice."),
+    (("flux de trésorerie", "flux d'exploitation", "flux d'investissement", "flux de financement"),
+     "Flux de trésorerie",
+     "D'où vient l'argent qui entre sur le compte et où part celui qui sort : activité, investissements, "
+     "financement (emprunts, levées).",
+     "Vous gagnez 10 k€ mais achetez une machine de 30 k€ : la trésorerie baisse de 20 k€."),
+    (("bilan",), "Bilan",
+     "La photo de l'entreprise à un instant : ce qu'elle possède (actif) et qui l'a financée (passif). Les deux "
+     "côtés sont toujours égaux.",
+     "Une usine de 9 M€ financée par 3 M€ de capital et 6 M€ d'emprunt."),
+    (("actif",), "Actif",
+     "Tout ce que possède l'entreprise : matériel, stocks, factures à encaisser, argent en banque.", ""),
+    (("passif",), "Passif",
+     "Qui finance l'entreprise : les actionnaires (capitaux propres) et les prêteurs (dettes).", ""),
+    (("capitaux propres", "fonds propres"), "Capitaux propres",
+     "L'argent des actionnaires : capital apporté plus bénéfices accumulés (moins les pertes).",
+     "200 k€ apportés et 50 k€ de pertes cumulées : 150 k€ de capitaux propres."),
+    (("immobilis",), "Immobilisations",
+     "Les biens durables de l'entreprise : usine, machines, logiciel, laboratoire… (net de leur usure).",
+     "Une usine payée 9 M€, amortie à 20 % : 7,2 M€ à l'actif."),
+    (("goodwill", "écart d'acquisition"), "Goodwill (écart d'acquisition)",
+     "Quand vous rachetez une société plus cher que ses capitaux propres, la différence est le goodwill : vous "
+     "payez sa clientèle, sa marque, ses équipes.",
+     "Vous payez 1 M€ une société dont les capitaux propres valent 600 k€ : 400 k€ de goodwill."),
+    (("créances", "factures clients"), "Créances clients",
+     "Ce que vos clients vous doivent : ils ont été facturés mais n'ont pas encore payé.",
+     "Vous facturez 20 k€ payables à 30 jours : 20 k€ de créances pendant un mois."),
+    (("travaux en cours", "encours"), "Travaux en cours",
+     "Du travail déjà réalisé sur un contrat mais pas encore facturé au client.",
+     "Vous avez réalisé 10 % d'un contrat de 5 M€, facturé au prochain jalon : 500 k€ d'encours."),
+    (("acomptes", "avances reçues"), "Acomptes reçus",
+     "De l'argent versé d'avance par un client (ou un éditeur) : il est à vous en caisse, mais vous le devez "
+     "en travail ou en remboursement.",
+     "Un client verse 20 % d'un contrat de 5 M€ à la signature : 1 M€ d'acompte."),
+    (("rotation des stocks", "jours de stock"), "Rotation des stocks",
+     "Combien de jours de ventes représente votre stock.",
+     "300 k€ de stock pour 10 k€ de ventes par jour : 30 jours de stock."),
+    (("rupture",), "Rupture de stock",
+     "Un client veut acheter mais vous n'avez plus la marchandise : la vente est perdue.", ""),
+    (("stocks", "stock de sécurité"), "Stocks",
+     "Les marchandises achetées et pas encore vendues : de l'argent qui dort en entrepôt.",
+     "Vous achetez 100 k€ de produits pour les revendre le mois prochain : 100 k€ de stock."),
+    (("découvert",), "Découvert",
+     "Votre compte passe sous zéro : la banque le tolère jusqu'à une limite, mais facture des agios (12 % par an "
+     "ici). Au-delà, c'est l'incident.",
+     "−20 000 € pendant un mois coûtent environ 200 € d'agios."),
+    (("note de crédit",), "Note de crédit",
+     "La confiance de votre banque, de A (excellente) à E (critique). Elle fixe ce qu'elle vous prête et à quel "
+     "taux.",
+     "En A, vous empruntez à 4 % ; en D, à plus de 7 %, et beaucoup moins."),
+    (("taux de référence", "euribor"), "Taux de référence",
+     "Le taux auquel les banques se prêtent entre elles. Les prêts à taux variable le suivent.",
+     "Il passe de 3 % à 4 % : un prêt variable de 20 M€ coûte 200 000 € d'intérêts de plus par an."),
+    (("capacité d'emprunt",), "Capacité d'emprunt",
+     "Ce que la banque accepte encore de vous prêter, selon votre activité, vos dettes et votre note.", ""),
+    (("charges financières", "intérêts"), "Charges financières",
+     "Le coût de l'argent emprunté : intérêts des prêts, agios du découvert, frais bancaires.",
+     "Un prêt de 100 k€ à 5 % coûte environ 400 € d'intérêts par mois au début."),
+    (("roic", "rendement du capital"), "ROIC (rendement du capital investi)",
+     "Ce que rapporte chaque euro investi dans l'activité, par an. Il doit dépasser le coût de votre dette.",
+     "Une centrale de 28 M€ qui dégage 2 M€ par an après impôt : ROIC d'environ 7 %."),
+    (("point mort", "seuil de rentabilité"), "Point mort",
+     "Le niveau d'activité à partir duquel vous ne perdez plus d'argent : vos marges couvrent enfin vos coûts "
+     "fixes.",
+     "20 k€ de coûts fixes et 40 % de marge : il faut 50 k€ de ventes par mois."),
+    (("utilisation des usines", "utilisation usine"), "Taux d'utilisation",
+     "La part de la capacité de vos usines réellement utilisée. Une usine à moitié vide coûte presque aussi cher "
+     "qu'une usine pleine.",
+     "1 200 modules produits sur 1 500 possibles : 80 % d'utilisation."),
+    (("coût de production",), "Coût de production",
+     "Ce que coûte la fabrication d'une unité. Il baisse avec l'expérience (production cumulée).", ""),
+    (("revenu récurrent", "mrr", "arr"), "Revenu récurrent (MRR)",
+     "Le total des abonnements encaissés chaque mois. L'ARR est le même chiffre sur un an (× 12).",
+     "120 clients à 450 € par mois : MRR de 54 000 €, ARR de 648 000 €."),
+    (("attrition", "churn"), "Attrition (churn)",
+     "La part de vos clients abonnés qui partent chaque mois.",
+     "3 % par mois : sur 100 clients, 3 résilient ; un client reste en moyenne près de 3 ans."),
+    (("ltv", "cac", "valeur d'un client", "coût d'acquisition"), "LTV et CAC",
+     "LTV : ce qu'un client vous rapporte pendant toute sa durée d'abonnement. CAC : ce qu'il vous a coûté en "
+     "marketing pour le gagner. Il faut LTV ≥ 3 × CAC.",
+     "Un client rapporte 12 000 € au total et a coûté 3 000 € à acquérir : LTV/CAC de 4."),
+    (("maturité",), "Maturité du produit",
+     "Le niveau d'aboutissement de votre logiciel : un produit mûr attire plus de clients et en perd moins.", ""),
+    (("rnpv", "valeur du pipeline", "pipeline"), "Pipeline (rNPV)",
+     "La valeur de vos molécules, pondérée par leurs chances de réussir chaque phase restante.",
+     "Un médicament qui vaudrait 200 M€ mais n'a que 10 % de chances d'aboutir : ≈ 20 M€ (moins les essais)."),
+    (("autonomie",), "Autonomie de trésorerie",
+     "Combien de mois vous pouvez tenir au rythme de dépenses actuel avant d'être à sec.",
+     "3 M€ en banque et 250 k€ dépensés par mois : 12 mois d'autonomie."),
+    (("phase 1", "phase 2", "phase 3", "préclinique", "essai"), "Essais cliniques",
+     "Un médicament passe par le préclinique (laboratoire), puis trois phases d'essais sur l'humain, chacune plus "
+     "longue et plus chère. Chaque étape peut échouer.", ""),
+    (("wishlist",), "Wishlists",
+     "Les joueurs qui ont ajouté votre jeu à leur liste d'envies : une partie d'entre eux l'achètera à la sortie.",
+     "50 000 wishlists converties à 20 % : 10 000 ventes le premier mois."),
+    (("note attendue", "critique"), "Note de la critique",
+     "La note que la presse donnera à votre jeu. Elle dépend de sa qualité et de son avancement, et fait varier "
+     "fortement les ventes.", ""),
+    (("prix maximal accepté", "plafond"), "Prix maximal accepté",
+     "Le prix au-delà duquel votre clientèle n'achète plus. Il monte avec la réputation et l'exclusivité.",
+     "Plafond de 6 000 € : à 5 800 €, la pièce part ; à 7 000 €, les ventes s'effondrent."),
+    (("exclusivit",), "Exclusivité",
+     "La rareté perçue de votre marque. Une liste d'attente la renforce ; vendre à tout le monde ou baisser les "
+     "prix l'abîme.", ""),
+    (("liste d'attente",), "Liste d'attente",
+     "Des clients qui voulaient acheter mais n'ont pas eu de pièce. Dans le luxe, c'est bon signe.", ""),
+    (("carnet de commandes",), "Carnet de commandes",
+     "Le montant des contrats signés qu'il vous reste à réaliser : vos revenus futurs quasi certains.",
+     "Deux contrats de 5 M€ réalisés à moitié : 5 M€ de carnet."),
+    (("charge / capacité", "charge de travail"), "Charge / capacité",
+     "Le travail à fournir chaque mois rapporté à ce que votre équipe peut faire. Au-delà de 100 %, retards "
+     "garantis.", ""),
+    (("pénalités",), "Pénalités de retard",
+     "Ce que vous payez au client quand un contrat est livré en retard.", ""),
+    (("crédibilité",), "Crédibilité",
+     "Votre réputation technique : elle ouvre l'accès aux plus gros contrats et partenariats.", ""),
+    (("ppa", "contrat industriel"), "Contrat long (PPA)",
+     "Un client s'engage à acheter votre électricité à prix fixe pendant des années : moins de gains si les prix "
+     "flambent, mais des revenus sûrs pour rembourser la dette.", ""),
+    (("prix de gros", "spot"), "Prix de gros de l'électricité",
+     "Le prix auquel l'électricité s'échange chaque jour sur le marché. Il varie fortement.", ""),
+    (("affacturage",), "Affacturage",
+     "Vous vendez vos factures clients à une société spécialisée : elle vous paie tout de suite, moins une "
+     "commission.",
+     "20 000 € de factures à 60 jours : 19 400 € tout de suite (3 % de commission)."),
+    (("crédit-bail",), "Crédit-bail",
+     "Vous louez un équipement au lieu de l'acheter : rien à payer tout de suite, des loyers ensuite (plus cher "
+     "au total).", ""),
+    (("dividende",), "Dividende",
+     "La part du bénéfice versée aux actionnaires. L'argent sort de l'entreprise mais vous appartient pour de "
+     "bon.", ""),
+    (("lever des fonds", "levée de fonds", "levées"), "Levée de fonds",
+     "Des investisseurs apportent de l'argent jamais remboursé, contre une part de votre entreprise.",
+     "Votre entreprise vaut 4 M€, vous levez 1 M€ : les investisseurs prennent 20 % du capital."),
+    (("placement",), "Placements",
+     "La trésorerie mise de côté sur un compte rémunéré (3 % par an ici), récupérable à tout moment.", ""),
+    (("subvention",), "Subvention",
+     "De l'argent public donné (non remboursé) pour soutenir l'innovation, la recherche ou un investissement.", ""),
+    (("crédit d'impôt",), "Crédit d'impôt",
+     "L'État rembourse une partie de certaines dépenses (recherche, innovation, jeu vidéo), même si vous ne faites "
+     "pas de bénéfice.", ""),
+    (("impôt sur les sociétés",), "Impôt sur les sociétés",
+     "L'impôt sur le bénéfice de l'année : 15 % jusqu'à 42 500 €, 25 % au-delà. Les pertes passées le réduisent.",
+     ""),
+    (("moic", "multiple", "argent investi", "capital investi"), "Multiple de l'argent investi (MOIC)",
+     "Le score de la partie : valeur finale de l'entreprise (plus les dividendes) divisée par l'argent apporté "
+     "par vous et vos investisseurs.",
+     "6 M€ investis, une entreprise qui vaut 18 M€ : × 3."),
+    (("valeur de l'entreprise", "valorisation", "valeur finale"), "Valeur de l'entreprise",
+     "Ce que vaudrait votre entreprise si on la vendait : selon ses ventes, sa rentabilité, sa croissance et les "
+     "atouts de son secteur, plus sa trésorerie et moins ses dettes.", ""),
+    (("chiffre d'affaires", "ca du mois", "ca annuel"), "Chiffre d'affaires",
+     "Tout ce que vos clients vous ont acheté sur la période, avant de retirer le moindre coût.",
+     "100 ventes à 50 € : 5 000 € de chiffre d'affaires."),
+    (("part de marché", "part"), "Part de marché",
+     "La part des ventes du secteur que vous réalisez face à vos concurrents.", ""),
+    (("emprunt",), "Emprunt",
+     "De l'argent prêté par la banque, remboursé chaque mois avec des intérêts. Pendant un différé, on ne paie "
+     "que les intérêts.",
+     "100 000 € sur 5 ans à 5 % : environ 1 890 € par mois."),
+    (("trésorerie",), "Trésorerie",
+     "L'argent réellement disponible sur votre compte. On peut être rentable et manquer de trésorerie : c'est "
+     "la première cause de faillite.",
+     "Vous vendez 50 k€ payables à 60 jours : le bénéfice est là, l'argent arrive dans deux mois."),
+]
+
+
+def definition(texte):
+    """Définition d'un libellé court (titre de tuile, ligne de tableau…), ou None."""
+    t = str(texte).lower().replace("’", "'").replace("ⓘ", "").strip()
+    if not t or len(t) > 48 or any(c.isdigit() for c in t[:2]):
+        return None
+    for motifs, titre, texte_def, exemple in GLOSSAIRE:
+        for mo in motifs:
+            trouve = re.search(rf"(?<![a-zà-ÿ]){re.escape(mo)}(?![a-zà-ÿ])", t) if len(mo) <= 4 else mo in t
+            if trouve:
+                return titre, texte_def, exemple
+    return None
+
+
+class Bulles:
+    """Bulles d'explication : survolez un terme financier, sa définition apparaît."""
+
+    def __init__(self, racine):
+        self.r = racine
+        self.fen = None
+        self.attente = None
+        racine.bind_class("Label", "<Enter>", self.entrer, add="+")
+        racine.bind_class("Label", "<Leave>", self.sortir, add="+")
+        racine.bind_class("Label", "<ButtonPress>", self.sortir, add="+")
+
+    def entrer(self, e):
+        w = e.widget
+        if getattr(w, "_sans_bulle", False):
+            return
+        try:
+            d = definition(w.cget("text"))
+        except (tk.TclError, AttributeError):
+            return
+        if not d:
+            return
+        if not isinstance(w, Bouton):
+            w.config(cursor="question_arrow")
+        self.annuler()
+        self.attente = self.r.after(450, lambda: self.montrer(w, d))
+
+    def annuler(self):
+        if self.attente:
+            self.r.after_cancel(self.attente)
+            self.attente = None
+
+    def montrer(self, w, d):
+        self.cacher()
+        if not w.winfo_exists() or not w.winfo_viewable():
+            return
+        titre, texte, exemple = d
+        f = self.fen = tk.Toplevel(self.r, bg=ACC)
+        f.wm_overrideredirect(True)
+        corps = tk.Frame(f, bg="#141b26", padx=12, pady=9)
+        corps.pack(padx=1, pady=1)
+        for txt, fnt, coul in ((titre, police(10, True), TXT), (texte, police(9), "#d4d4d4"),
+                               (("Exemple : " + exemple) if exemple else "", police(9), "#9fb4d0")):
+            if txt:
+                l = tk.Label(corps, text=txt, font=fnt, bg="#141b26", fg=coul, wraplength=330, justify="left")
+                l._sans_bulle = True
+                l.pack(anchor="w", pady=(0, 3))
+        f.update_idletasks()
+        x = w.winfo_rootx() + 8
+        y = w.winfo_rooty() + w.winfo_height() + 6
+        if x + f.winfo_reqwidth() > w.winfo_screenwidth() - 8:
+            x = w.winfo_screenwidth() - f.winfo_reqwidth() - 8
+        if y + f.winfo_reqheight() > w.winfo_screenheight() - 40:
+            y = w.winfo_rooty() - f.winfo_reqheight() - 6
+        f.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    def cacher(self):
+        if self.fen is not None:
+            try:
+                self.fen.destroy()
+            except tk.TclError:
+                pass
+            self.fen = None
+
+    def sortir(self, _e=None):
+        self.annuler()
+        self.cacher()
+
+
+def lire_profil():
+    try:
+        import json
+        return json.loads((DOSSIER_SAUVEGARDES / "profil.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def ecrire_profil(**maj):
+    import json
+    p = lire_profil()
+    p.update(maj)
+    try:
+        DOSSIER_SAUVEGARDES.mkdir(exist_ok=True)
+        (DOSSIER_SAUVEGARDES / "profil.json").write_text(json.dumps(p), encoding="utf-8")
+    except OSError:
+        pass
+
+
+PALIERS = [(1, "Valoir plus que l'argent reçu"), (2, "Entreprise saine"), (5, "Belle réussite"),
+           (15, "Success story"), (float("inf"), "Licorne")]
+
+ACTIVITE_TUTO = {
+    "industrie": "Ton usine peut produire {capa} modules par mois. Elle coûte presque aussi cher à l'arrêt qu'en "
+                 "marche : il faut la remplir au-delà du point mort (la ligne orange du graphique) pour gagner de "
+                 "l'argent.",
+    "saas": "Ton logiciel est encore jeune. Chaque mois, la R&D le fait mûrir et le marketing amène des clients, qui "
+            "paient ensuite tous les mois : c'est le revenu récurrent (MRR). Surveille aussi les clients qui partent "
+            "(l'attrition).",
+    "biotech": "Tu as deux molécules : une en Phase 1, une en préclinique. Aucune vente avant des années : chaque "
+               "phase réussie multiplie leur valeur, un échec la réduit à zéro. Ta trésorerie doit tenir jusqu'aux "
+               "prochains succès.",
+    "jeu": "Ton premier jeu est en développement. Aucun revenu avant sa sortie : le marketing fait monter les "
+           "wishlists, qui deviendront des ventes le jour du lancement.",
+    "luxe": "Dans le luxe, on ne vend pas en volume : la rareté fait monter le prix que la clientèle accepte (le "
+            "plafond). Ne baisse jamais ton prix : la marque se banaliserait.",
+    "aero": "Tu as un premier contrat de 5 M€ à livrer en 16 mois. Tes revenus viendront des appels d'offres : "
+            "réponds-y ici, sans dépasser la capacité de ton équipe, sinon ce sont les pénalités de retard.",
+    "distribution": "Tu achètes des produits pour les revendre avec quelques pour cent de marge. Tout se joue sur le "
+                    "stock : assez pour ne pas manquer de marchandise, pas trop pour ne pas bloquer ta trésorerie.",
+    "energie": "Ton premier parc solaire est en construction, financé surtout par une dette à taux variable. Une fois "
+               "raccordé, il vend son électricité au prix du marché… ou à prix garanti si tu signes un contrat.",
+}
+DECISIONS_TUTO = {
+    "industrie": "Les constructeurs comparent les prix : un prix plus bas attire beaucoup de commandes, mais ta "
+                 "marge est déjà fine.",
+    "saas": "Le prix est mensuel, par client. La R&D fait mûrir le produit, le marketing amène les clients.",
+    "biotech": "Pas de prix à fixer : décide combien investir en recherche (nouvelles molécules) et en communication.",
+    "jeu": "Le prix ne compte qu'à la sortie du jeu. Le polish améliore la note de la critique.",
+    "luxe": "Monte ton prix vers le plafond, jamais l'inverse. L'image (défilés) fait monter ce plafond.",
+    "aero": "Pas de prix ici : tu le fixes dans chaque réponse à un appel d'offres.",
+    "distribution": "Tes clients comparent les prix au centime près : quelques centimes font basculer les ventes.",
+    "energie": "Pas de prix : le marché fixe celui de l'électricité. Le développement obtient des permis pour de "
+               "nouvelles centrales.",
+}
+ACTION_TUTO = {
+    "industrie": "Regarde l'utilisation de ton usine : sous le point mort, gagne des commandes (prix, prospection) "
+                 "ou réduis tes coûts.",
+    "saas": "Compare la valeur d'un client (LTV) à ce qu'il te coûte à acquérir (CAC) : il faut au moins 3 fois plus.",
+    "biotech": "Regarde ton autonomie de trésorerie : lève des fonds bien avant qu'elle tombe sous 9 mois.",
+    "jeu": "Pense à un éditeur : il avance de l'argent tout de suite, contre une part des ventes.",
+    "luxe": "Règle ton quota de pièces : une petite liste d'attente fait grimper l'exclusivité.",
+    "aero": "Réponds à un appel d'offres ouvert : un prix un peu sous le budget du client augmente fortement tes "
+            "chances.",
+    "distribution": "Règle ton stock de sécurité : vise zéro rupture sans dépasser 30 jours de stock.",
+    "energie": "Quand ton parc est raccordé, compare le prix du marché à un contrat long : le contrat sécurise tes "
+               "remboursements.",
+}
 
 
 # =============================================================================
 class Application:
     def __init__(self, racine: tk.Tk):
         self.r = racine
+        choisir_polices(racine)
         racine.title("Ma Boîte — simulation de création d'entreprise")
         racine.configure(bg=FOND)
         racine.geometry("1320x820")
@@ -855,6 +1372,8 @@ class Application:
         self.m = None
         self.dialogue_ouvert = False
         self.fichier = None
+        self.tuto = None
+        self.bulles = Bulles(racine)
         racine.bind("<Return>", lambda _: self.tour() if self.m and not self.m.fin and not self.dialogue_ouvert
                     else None)
         racine.bind("<Control-s>", lambda _: self.sauvegarder())
@@ -868,10 +1387,12 @@ class Application:
         if not m or m.fin or not self.fichier:
             return False
         j = m.joueur
-        meta = {"version": VERSION_SAUVEGARDE, "nom": j.nom, "secteur": m.s.nom, "icone": m.s.icone,
-                "mois": m.mois, "rang": m.rang_joueur(), "nb": len(m.entreprises), "tresorerie": j.tresorerie,
+        br = getattr(m, "mode", "") == "br"
+        meta = {"version": VERSION_SAUVEGARDE, "nom": j.nom, "secteur": ("⚔ " if br else "") + m.s.nom,
+                "icone": m.s.icone, "mois": m.mois, "rang": m.rang_joueur(),
+                "nb": len(m.actives) if br else len(m.entreprises), "tresorerie": j.tresorerie,
                 "difficulte": m.difficulte, "duree": m.duree, "horodatage": time.time()}
-        etat = {"marche": m, "journal": list(self.lignes_journal),
+        etat = {"marche": m, "journal": list(self.lignes_journal), "tuto": self.tuto,
                 "decisions": {"prix": self.v_prix.get(), "mkt": self.v_mkt.get(), "qual": self.v_qual.get()}}
         try:
             DOSSIER_SAUVEGARDES.mkdir(exist_ok=True)
@@ -907,6 +1428,7 @@ class Application:
                           "(avant les 8 nouveaux secteurs) et ne peut pas être reprise.", icone="⚠", couleur=ROUGE)
             return
         self.m = etat["marche"]
+        self.tuto = etat.get("tuto") or {"actif": False, "i": 0}
         DUREE_JEU["n"] = self.m.duree
         self.fichier = Path(fichier)
         self.ecran_jeu(etat.get("decisions"), etat.get("journal"))
@@ -1006,7 +1528,10 @@ class Application:
         f = self.vider()
         haut = tk.Frame(f, bg=FOND, padx=30, pady=14)
         haut.pack(fill="x")
-        tk.Label(haut, text="Ma Boîte", font=police(26, True), bg=FOND, fg=TXT).pack(anchor="w")
+        ligne_t = tk.Frame(haut, bg=FOND)
+        ligne_t.pack(anchor="w")
+        logo(ligne_t, 44, FOND).pack(side="left", padx=(0, 14))
+        tk.Label(ligne_t, text="Ma Boîte", font=police(28, True), bg=FOND, fg=TXT).pack(side="left")
         tk.Label(haut, text=f"Votre mise : {euros(M.APPORT)}. Choisissez un secteur, convainquez investisseurs et "
                  "banquiers, et bâtissez l'entreprise qui vaudra le plus face à vos concurrents.", font=police(11),
                  bg=FOND, fg=MUT).pack(anchor="w")
@@ -1022,8 +1547,9 @@ class Application:
             for k in range(4):
                 ligne.columnconfigure(k, weight=1, uniform="p")
             for i, meta in enumerate(parties[:4]):
-                c = tk.Frame(ligne, bg=PANNEAU, highlightthickness=1, highlightbackground=BORD, padx=12, pady=6)
+                c = tk.Frame(ligne, bg=PANNEAU, padx=14, pady=8)
                 c.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 10, 0))
+                arrondir(c, 12)
                 tk.Label(c, text=f"{meta.get('icone', '')}  {meta['nom']}", font=police(11, True), bg=PANNEAU,
                          fg=TXT).pack(anchor="w")
                 duree = meta.get("duree", 36)
@@ -1066,8 +1592,7 @@ class Application:
         self.v_secteur = tk.StringVar(value="saas")
         self.cartes_secteur = {}
         for i, (cle, s) in enumerate(M.SECTEURS.items()):
-            c = tk.Frame(grille, bg=PANNEAU2, highlightthickness=2, highlightbackground=PANNEAU2, padx=10, pady=6,
-                         cursor="hand2")
+            c = tk.Frame(grille, bg=PANNEAU2, padx=12, pady=8, cursor="hand2")
             c.grid(row=i // 4, column=i % 4, sticky="nsew", padx=3, pady=3)
             grille.columnconfigure(i % 4, weight=1, uniform="s")
             w1 = tk.Label(c, text=f"{s.icone}  {s.nom}", font=police(10, True), bg=PANNEAU2, fg=TXT, anchor="w",
@@ -1079,6 +1604,10 @@ class Application:
                 w.pack(anchor="w")
             for w in (c, w1, w2, w3):
                 w.bind("<Button-1>", lambda _, k=cle: self.choisir_secteur(k))
+                w.bind("<Enter>", lambda _, k=cle: self.survol_secteur(k, True))
+                w.bind("<Leave>", lambda _, k=cle: self.survol_secteur(k, False))
+            c._etiquettes = (w1, w2, w3)
+            arrondir(c, 10)
             self.cartes_secteur[cle] = c
         self.detail = tk.Frame(g, bg=PANNEAU)
         self.detail.pack(fill="both", expand=True, pady=(10, 0))
@@ -1086,31 +1615,86 @@ class Application:
         # --- droite : compétition, durée, financement, lancement
         dr = Carte(corps, "La partie")
         dr.grid(row=0, column=1, sticky="nsew", pady=(0, 16))
-        tk.Label(dr, text="Concurrents", font=police(10, True), bg=PANNEAU, fg=MUT).pack(anchor="w")
-        self.v_nb = tk.IntVar(value=3)
-        Segments(dr, [(k, str(k) if k else "Solo") for k in range(5)], self.v_nb, self.maj_creation
-                 ).pack(anchor="w", pady=(4, 8))
-        tk.Label(dr, text="Difficulté", font=police(10, True), bg=PANNEAU, fg=MUT).pack(anchor="w")
+        self.v_mode = tk.StringVar(value="classique")
+        self.seg_mode = Segments(dr, [("classique", "Classique"), ("br", "⚔  Battle royale")], self.v_mode,
+                                 self.maj_mode)
+        self.seg_mode.pack(anchor="w", pady=(0, 6))
+        tk.Label(dr, text="Difficulté", font=police(10, True), bg=PANNEAU, fg=MUT).pack(anchor="w", pady=(4, 0))
         self.v_diff = tk.StringVar(value="Normal")
-        Segments(dr, [(k, k) for k in M.DIFFICULTES], self.v_diff, self.maj_creation).pack(anchor="w", pady=(4, 8))
-        tk.Label(dr, text="Durée de la partie", font=police(10, True), bg=PANNEAU, fg=MUT).pack(anchor="w")
+        Segments(dr, [(k, k) for k in M.DIFFICULTES], self.v_diff, self.maj_creation).pack(anchor="w", pady=(4, 4))
+        self.zone_br = tk.Frame(dr, bg=PANNEAU)
+        self.zone_classique = tk.Frame(dr, bg=PANNEAU)
+        self.zone_classique.pack(fill="x")
+        self.v_nb = tk.IntVar(value=3)
+        curseur(self.zone_classique, "Concurrents", self.v_nb, 0, M.MAX_CONCURRENTS, 1,
+                lambda v: "aucun (solo)" if int(float(v)) == 0 else f"{int(float(v))}", self.maj_creation)
+        tk.Label(self.zone_classique, text="Durée de la partie", font=police(10, True), bg=PANNEAU, fg=MUT
+                 ).pack(anchor="w", pady=(8, 0))
         self.v_duree = tk.IntVar(value=36)
-        Segments(dr, list(M.DUREES_PARTIE.items()), self.v_duree, self.maj_creation).pack(anchor="w", pady=(4, 4))
-        self.l_adv = tk.Label(dr, font=police(9), bg=PANNEAU, fg=MUT, justify="left", wraplength=290)
+        Segments(self.zone_classique, list(M.DUREES_PARTIE.items()), self.v_duree, self.maj_creation
+                 ).pack(anchor="w", pady=(4, 4))
+        self.v_tuto = tk.BooleanVar(value=not lire_profil().get("tutoriel_fait"))
+        tk.Checkbutton(dr, text="Tutoriel guidé (3 premiers mois)", variable=self.v_tuto, font=police(10, True),
+                       bg=PANNEAU, fg=TXT, selectcolor=PANNEAU2, activebackground=PANNEAU, activeforeground=TXT,
+                       highlightthickness=0, bd=0, cursor="hand2").pack(anchor="w", pady=(6, 2))
+        self.l_adv = tk.Label(self.zone_classique, font=police(9), bg=PANNEAU, fg=MUT, justify="left",
+                              wraplength=290)
         self.l_adv.pack(anchor="w", pady=(2, 2))
-        self.zone_pret = tk.Frame(dr, bg=PANNEAU)
+        self.zone_pret = tk.Frame(self.zone_classique, bg=PANNEAU)
         self.zone_pret.pack(fill="x")
+        for titre, texte in (("⚔  100 entreprises, 1 seule gagnante",
+                              "Un secteur est tiré au sort. Vous affrontez 99 concurrents pendant 2 ans."),
+                             ("🌀  La zone se resserre",
+                              f"À partir du mois {M.BR_PREMIERE_ZONE}, puis tous les {M.BR_ZONE} mois, les entreprises "
+                              "les moins bien valorisées sont éliminées."),
+                             ("📦  Le butin", "Les clients et les équipes des meilleures éliminées sont à reprendre à "
+                                             "moitié prix, page Rachats."),
+                             ("🏆  La victoire", "Être la dernière debout. Sinon, votre place compte : podium, "
+                                                "top 10, top 25…")):
+            tk.Label(self.zone_br, text=titre, font=police(10, True), bg=PANNEAU, fg=TXT).pack(anchor="w", pady=(8, 0))
+            tk.Label(self.zone_br, text=texte, font=police(9), bg=PANNEAU, fg=MUT, wraplength=290, justify="left"
+                     ).pack(anchor="w")
         self.l_depart = tk.Label(dr, font=police(10, True), bg=PANNEAU, justify="left", wraplength=300)
         self.l_depart.pack(anchor="w", pady=8)
-        Bouton(dr, "Lancer mon entreprise  →", self.demarrer, "primaire", taille=12, pady=10).pack(
-            fill="x", side="bottom")
+        self.b_lancer = Bouton(dr, "Lancer mon entreprise  →", self.demarrer, "primaire", taille=12, pady=10)
+        self.b_lancer.pack(fill="x", side="bottom")
         self.choisir_secteur("saas")
 
+    def maj_mode(self):
+        br = self.v_mode.get() == "br"
+        if br:
+            self.zone_classique.pack_forget()
+            self.zone_br.pack(fill="x", before=self.l_depart)
+            for k, c in self.cartes_secteur.items():
+                teinter(c, PANNEAU2, c._etiquettes)
+            for w in self.detail.winfo_children():
+                w.destroy()
+            tk.Label(self.detail, text="⚔  Battle royale : le secteur sera tiré au sort au lancement.",
+                     font=police(12, True), bg=PANNEAU, fg=AMBRE, anchor="w").pack(anchor="w", fill="x")
+            tk.Label(self.detail, text="Chacun des 8 secteurs peut tomber : industrie, SaaS, biotech, jeu vidéo, "
+                     "luxe, aéronautique, distribution ou énergie. Il faudra comprendre vite son modèle et sa "
+                     "métrique clé (le tutoriel et les bulles d'aide sont là pour ça). Votre financement de "
+                     "départ sera celui conseillé pour le secteur tiré.", font=police(10), bg=PANNEAU, fg="#d4d4d4",
+                     wraplength=720, justify="left", anchor="w").pack(anchor="w", fill="x", pady=(6, 0))
+            self.l_depart.config(text="100 entreprises entrent dans l'arène. Une seule en sortira.", fg=AMBRE)
+            self.b_lancer.config(text="Entrer dans l'arène  ⚔")
+        else:
+            self.zone_br.pack_forget()
+            self.zone_classique.pack(fill="x", before=self.l_depart)
+            self.b_lancer.config(text="Lancer mon entreprise  →")
+            self.choisir_secteur(self.v_secteur.get())
+
     def choisir_secteur(self, cle):
+        if getattr(self, "v_mode", None) is not None and self.v_mode.get() == "br":
+            self.v_mode.set("classique")          # choisir un secteur, c'est revenir au mode classique
+            self.v_secteur.set(cle)
+            self.seg_mode.peindre()
+            self.maj_mode()
+            return
         self.v_secteur.set(cle)
         s = M.SECTEURS[cle]
-        for k, c in self.cartes_secteur.items():
-            c.configure(highlightbackground=ACC if k == cle else PANNEAU2)
+        for k in self.cartes_secteur:
+            self.survol_secteur(k, False)
         for w in self.detail.winfo_children():
             w.destroy()
 
@@ -1142,7 +1726,15 @@ class Application:
         self.l_pret_conseil.pack(anchor="w")
         self.maj_creation()
 
+    def survol_secteur(self, cle, dessus):
+        c = self.cartes_secteur[cle]
+        choisi = cle == self.v_secteur.get() and getattr(self, "v_mode", None) is not None \
+            and self.v_mode.get() != "br"
+        teinter(c, "#1e1e45" if choisi else "#26262d" if dessus else PANNEAU2, c._etiquettes)
+
     def maj_creation(self):
+        if getattr(self, "v_mode", None) is not None and self.v_mode.get() == "br":
+            return
         s = M.SECTEURS[self.v_secteur.get()]
         pret = self.v_pret.get()
         tresor = M.APPORT + s.investisseurs + s.subvention_initiale + pret - s.installation
@@ -1161,14 +1753,20 @@ class Application:
                              + ("" if ok else "\n⚠ Trop juste pour tenir : empruntez davantage."),
                              fg=VERT if ok else ROUGE)
         nb = self.v_nb.get()
-        ordre = ["equilibre", "lowcost", "premium", "startup"][:nb]
-        self.l_adv.config(text=("Adversaires : " + ", ".join(M.STRATEGIES[k].nom.lower() for k in ordre)
-                                + ". D'autres peuvent arriver.") if nb else
-                          "Seul sur votre marché… pour l'instant.")
+        ordre = ["equilibre", "lowcost", "premium", "startup"]
+        comptes = {k: sum(1 for i in range(nb) if ordre[i % len(ordre)] == k) for k in ordre}
+        liste = ", ".join((f"{n} × " if n > 1 else "") + M.STRATEGIES[k].nom.lower() for k, n in comptes.items() if n)
+        self.l_adv.config(text=(f"Adversaires : {liste}." + (" Marché très disputé : chacun y a une part plus petite."
+                                                            if nb >= 7 else " D'autres peuvent arriver."))
+                          if nb else "Seul sur votre marché… pour l'instant.")
 
     def demarrer(self):
         nom = self.v_nom.get().strip() or "Ma Boîte"
-        fichier = fichier_sauvegarde(nom, self.v_secteur.get())
+        br = self.v_mode.get() == "br"
+        cle = self.tirage_secteur() if br else self.v_secteur.get()
+        if cle is None:
+            return
+        fichier = fichier_sauvegarde(nom, ("br_" if br else "") + cle)
         ancien = lire_entete(fichier) if fichier.exists() else None
         if ancien:
             i, _ = self.dialogue("Une partie porte déjà ce nom", f"« {ancien['nom']} » ({ancien['secteur']}) est "
@@ -1176,13 +1774,73 @@ class Application:
                                  ("Remplacer", "Annuler"), "⚠", AMBRE)
             if i != 0:
                 return
-        self.m = M.Marche(nom, self.v_secteur.get(), float(self.v_pret.get()), self.v_nb.get(), self.v_diff.get(),
-                          duree=self.v_duree.get())
+        if br:
+            s = M.SECTEURS[cle]
+            self.m = M.Marche(nom, cle, float(s.pret_conseille), M.BR_CONCURRENTS, self.v_diff.get(), mode="br")
+        else:
+            self.m = M.Marche(nom, cle, float(self.v_pret.get()), self.v_nb.get(), self.v_diff.get(),
+                              duree=self.v_duree.get())
         DUREE_JEU["n"] = self.m.duree
+        self.tuto = {"actif": bool(self.v_tuto.get()), "i": 0}
         self.fichier = fichier
         self.ecran_jeu()
 
-    # ================================================================ écran de jeu
+    def tirage_secteur(self):
+        """Roulette : les secteurs défilent, ralentissent, et l'un d'eux est tiré au sort."""
+        import random
+        cles = list(M.SECTEURS)
+        tire = random.choice(cles)
+        d = tk.Toplevel(self.r, bg=PANNEAU)
+        d.title("Tirage au sort")
+        d.transient(self.r)
+        d.resizable(False, False)
+        tk.Frame(d, bg=AMBRE, height=4).pack(fill="x")
+        corps = tk.Frame(d, bg=PANNEAU, padx=40, pady=26)
+        corps.pack()
+        tk.Label(corps, text="⚔  TIRAGE DU SECTEUR", font=police(10, True), bg=PANNEAU, fg=AMBRE).pack()
+        l_icone = tk.Label(corps, font=police(40), bg=PANNEAU, fg=TXT)
+        l_icone.pack(pady=(12, 0))
+        l_nom = tk.Label(corps, font=police(20, True), bg=PANNEAU, fg=TXT, width=26)
+        l_nom.pack()
+        l_info = tk.Label(corps, font=police(10), bg=PANNEAU, fg=MUT, wraplength=440, justify="center")
+        l_info.pack(pady=(8, 0))
+        bas = tk.Frame(corps, bg=PANNEAU)
+        bas.pack(pady=(16, 0))
+        res = {"ok": False}
+
+        def fermer(ok):
+            res["ok"] = ok
+            d.destroy()
+        suite = [cles[i % len(cles)] for i in range(random.randint(0, 7), 40)]
+        while suite[-1] != tire:
+            suite.append(cles[(cles.index(suite[-1]) + 1) % len(cles)])
+
+        def tour(i=0):
+            if not d.winfo_exists():
+                return
+            s = M.SECTEURS[suite[i]]
+            l_icone.config(text=s.icone)
+            l_nom.config(text=s.nom, fg=TXT if i < len(suite) - 1 else AMBRE)
+            if i < len(suite) - 1:
+                d.after(int(40 + 260 * (i / len(suite)) ** 3), lambda: tour(i + 1))
+                return
+            l_info.config(text=f"{s.tag}\nMétrique clé : {s.metrique.lower()}.\n{s.gameplay}")
+            Bouton(bas, "Entrer dans l'arène  ⚔", lambda: fermer(True), "primaire", taille=11).pack(side="left")
+            Bouton(bas, "Annuler", lambda: fermer(False), "fantome").pack(side="left", padx=8)
+            d.bind("<Return>", lambda _: fermer(True))
+        d.bind("<Escape>", lambda _: fermer(False))
+        d.protocol("WM_DELETE_WINDOW", lambda: fermer(False))
+        d.update_idletasks()
+        x = self.r.winfo_rootx() + (self.r.winfo_width() - 560) // 2
+        y = self.r.winfo_rooty() + max(0, (self.r.winfo_height() - d.winfo_reqheight()) // 3)
+        d.geometry(f"+{x}+{y}")
+        d.grab_set()
+        tour()
+        self.dialogue_ouvert = True
+        self.r.wait_window(d)
+        self.dialogue_ouvert = False
+        return tire if res["ok"] else None
+
     def ecran_jeu(self, decisions=None, journal=None):
         f = self.vider()
         m, j, s = self.m, self.m.joueur, self.m.s
@@ -1191,26 +1849,40 @@ class Application:
 
         # --- barre latérale
         DUREE_JEU["n"] = m.duree
-        side = tk.Frame(f, bg=BARRE, width=236, padx=12, pady=14)
+        side = tk.Frame(f, bg=BARRE, width=240, padx=12, pady=16)
         side.pack(side="left", fill="y")
         side.pack_propagate(False)
-        tk.Label(side, text=f"{s.icone}  {j.nom}", font=police(13, True), bg=BARRE, fg=TXT, wraplength=210,
+        tk.Frame(f, bg="#1a1a1f", width=1).pack(side="left", fill="y")
+        ident = tk.Frame(side, bg=BARRE)
+        ident.pack(fill="x", padx=4)
+        logo(ident, 36).pack(side="left", padx=(0, 10))
+        noms = tk.Frame(ident, bg=BARRE)
+        noms.pack(side="left", fill="x")
+        tk.Label(noms, text=j.nom, font=police(12, True), bg=BARRE, fg=TXT, wraplength=160, justify="left"
+                 ).pack(anchor="w")
+        tk.Label(noms, text=f"{s.icone}  {s.nom}", font=police(8), bg=BARRE, fg=MUT, wraplength=160,
                  justify="left").pack(anchor="w")
-        tk.Label(side, text=s.nom, font=police(9), bg=BARRE, fg=MUT, wraplength=210, justify="left").pack(anchor="w")
-        tk.Frame(side, bg=BARRE, height=10).pack()
-        self.nav = {}
+        tk.Frame(side, bg=BARRE, height=14).pack()
+        self.nav, self.nav_ligne, self.nav_ind = {}, {}, {}
         self.page = None
         for cle, lib in [("bord", "▦   Tableau de bord"), ("activite", "◆   " + s.libelle_activite),
                          ("equipe", "☺   Équipe"), ("fin", "∑   Finances"),
-                         ("banque", "€   Banque et capital"), ("conc", "⚑   Concurrence"),
+                         ("banque", "€   Banque et capital"),
+                         ("conc", "⚔   Arène" if getattr(m, "mode", "") == "br" else "⚑   Concurrence"),
                          ("rachats", "⇄   Rachats"), ("inv", "▲   Investir"), ("journal", "☰   Journal")]:
-            b = tk.Label(side, text=lib, font=police(10, True), bg=BARRE, fg=MUT, anchor="w", padx=10, pady=6,
+            ligne_nav = tk.Frame(side, bg=BARRE, padx=4, cursor="hand2")
+            ligne_nav.pack(fill="x", pady=1)
+            ind = tk.Frame(ligne_nav, bg=BARRE, width=3)
+            ind.pack(side="left", fill="y", pady=8)
+            b = tk.Label(ligne_nav, text=lib, font=police(10, True), bg=BARRE, fg=MUT, anchor="w", padx=10, pady=7,
                          cursor="hand2")
-            b.pack(fill="x", pady=1)
-            b.bind("<Button-1>", lambda _, k=cle: self.afficher(k))
-            b.bind("<Enter>", lambda _, b=b, k=cle: b.config(bg=PANNEAU) if self.page != k else None)
-            b.bind("<Leave>", lambda _, b=b, k=cle: b.config(bg=BARRE) if self.page != k else None)
-            self.nav[cle] = b
+            b.pack(side="left", fill="x", expand=True)
+            arrondir(ligne_nav, 8)
+            for w in (ligne_nav, b):
+                w.bind("<Button-1>", lambda _, k=cle: self.afficher(k))
+                w.bind("<Enter>", lambda _, k=cle: self.teinte_nav(k, "#141418") if self.page != k else None)
+                w.bind("<Leave>", lambda _, k=cle: self.teinte_nav(k, BARRE) if self.page != k else None)
+            self.nav[cle], self.nav_ligne[cle], self.nav_ind[cle] = b, ligne_nav, ind
         tk.Frame(side, bg=BARRE, height=8).pack()
         for lib, cmd in (("⤓   Sauvegarder  (Ctrl+S)", self.sauvegarder), ("⌂   Menu principal", self.menu)):
             b = tk.Label(side, text=lib, font=police(10), bg=BARRE, fg=MUT, anchor="w", padx=12, pady=6,
@@ -1224,40 +1896,57 @@ class Application:
         self.l_sauve.pack(fill="x")
         bas = tk.Frame(side, bg=BARRE)
         bas.pack(side="bottom", fill="x")
-        self.l_rang = tk.Label(bas, font=police(22, True), bg=BARRE, fg=AMBRE)
+        obj = tk.Frame(bas, bg=PANNEAU, padx=12, pady=10)
+        obj.pack(fill="x", pady=(0, 14))
+        arrondir(obj, 12)
+        self.l_obj_titre = tk.Label(obj, text="🎯  OBJECTIF", font=police(8, True), bg=PANNEAU, fg=AMBRE)
+        self.l_obj_titre.pack(anchor="w")
+        self.l_obj = tk.Label(obj, font=police(9, True), bg=PANNEAU, fg=TXT, wraplength=175, justify="left")
+        self.l_obj.pack(anchor="w", pady=(2, 0))
+        self.c_obj = tk.Canvas(obj, height=6, bg=PANNEAU, highlightthickness=0)
+        self.c_obj.pack(fill="x", pady=(6, 4))
+        self.l_obj2 = tk.Label(obj, font=police(8), bg=PANNEAU, fg=MUT, wraplength=175, justify="left")
+        self.l_obj2.pack(anchor="w")
+        self.l_rang = tk.Label(bas, font=police(24, True), bg=BARRE, fg=AMBRE)
         self.l_rang.pack(anchor="w")
         self.l_rang2 = tk.Label(bas, font=police(9), bg=BARRE, fg=MUT)
         self.l_rang2.pack(anchor="w")
         tk.Frame(bas, bg=BARRE, height=12).pack()
         self.l_mois = tk.Label(bas, font=police(9, True), bg=BARRE, fg=MUT)
         self.l_mois.pack(anchor="w")
-        self.c_temps = tk.Canvas(bas, height=6, bg=PANNEAU2, highlightthickness=0)
+        self.c_temps = tk.Canvas(bas, height=6, bg=BARRE, highlightthickness=0)
         self.c_temps.pack(fill="x", pady=(4, 14))
-        self.b_suivant = Bouton(bas, "Mois suivant  ▶", self.tour, "primaire", taille=12, pady=12)
+        self.b_suivant = Bouton(bas, "Mois suivant  ▶", self.tour, "primaire", taille=12, pady=13)
         self.b_suivant.pack(fill="x")
         tk.Label(bas, text="ou touche Entrée", font=police(8), bg=BARRE, fg=DISCRET).pack(pady=(4, 0))
 
         # --- zone principale
-        main = tk.Frame(f, bg=FOND, padx=20, pady=14)
+        main = tk.Frame(f, bg=FOND, padx=24, pady=16)
         main.pack(side="left", fill="both", expand=True)
         tete = tk.Frame(main, bg=FOND)
         tete.pack(fill="x")
-        self.l_page = tk.Label(tete, font=police(18, True), bg=FOND, fg=TXT)
+        self.l_page = tk.Label(tete, font=police(20, True), bg=FOND, fg=TXT)
         self.l_page.pack(side="left")
         droite = tk.Frame(tete, bg=FOND)
         droite.pack(side="right")
-        self.l_treso = tk.Label(droite, font=police(18, True), bg=FOND)
+        self.l_treso = tk.Label(droite, font=police(20, True), bg=FOND)
         self.l_treso.pack(side="right")
         tk.Label(droite, text="Trésorerie", font=police(9), bg=FOND, fg=MUT).pack(side="right", padx=(0, 8),
                                                                                   pady=(6, 0))
-        self.l_note = tk.Label(droite, font=police(10, True), fg="#0b0b0b", padx=8, pady=4, cursor="hand2")
+        self.l_note = tk.Label(droite, font=police(10, True), fg="#0b0b0b", padx=10, pady=4, cursor="hand2",
+                               bg=VERT)
+        arrondir(self.l_note, 7)
         self.l_note.pack(side="right", padx=(18, 0))
         self.l_note.bind("<Button-1>", lambda _: self.afficher("banque"))
-        self.l_date = tk.Label(droite, font=police(10, True), bg=PANNEAU2, fg=TXT, padx=10, pady=4)
+        self.l_date = tk.Label(droite, font=police(10, True), bg=PANNEAU2, fg=TXT, padx=12, pady=4)
+        arrondir(self.l_date, 7)
         self.l_date.pack(side="right", padx=18)
 
-        self.flash_l = tk.Label(main, font=police(10), bg="#16130a", fg="#f5d58a", anchor="w", justify="left",
-                                padx=14, pady=7, wraplength=1000)
+        self.tuto_cadre = tk.Frame(main, bg="#15163a", padx=6)
+        self.tuto_apres = tete
+        self.flash_l = tk.Label(main, font=police(10), bg="#17150d", fg="#f5d58a", anchor="w", justify="left",
+                                padx=16, pady=8, wraplength=1000)
+        arrondir(self.flash_l, 10)
         self.flash_l.pack(fill="x", side="bottom", pady=(10, 0))
 
         zone = tk.Frame(main, bg=FOND)
@@ -1291,21 +1980,32 @@ class Application:
                 f"{e.nom} ({e.strategie.nom.lower()})" for e in m.concurrents) or "aucun") + ".", "marche")
         self.maj()
 
+    def teinte_nav(self, cle, couleur):
+        teinter(self.nav_ligne[cle], couleur, (self.nav[cle],))
+        if self.page != cle:
+            self.nav_ind[cle].config(bg=couleur)
+
     def afficher(self, cle):
+        self.bulles.sortir()
         self.page = cle
         self.pages[cle].tkraise()
+        br = getattr(self.m, "mode", "") == "br"
         titres = {"bord": "Tableau de bord", "activite": self.m.s.libelle_activite, "equipe": "Équipe et recrutement", "fin": "États financiers", "banque": "Banque, trésorerie et capital",
-                  "conc": "Concurrence", "rachats": "Rachats et filiales", "inv": "Investissements stratégiques",
+                  "conc": "Arène — battle royale" if br else "Concurrence", "rachats": "Rachats et filiales", "inv": "Investissements stratégiques",
                   "journal": "Journal"}
         self.l_page.config(text=titres[cle])
         for k, b in self.nav.items():
-            b.config(bg=PANNEAU if k == cle else BARRE, fg=TXT if k == cle else MUT)
+            b.config(fg=TXT if k == cle else MUT)
+            self.teinte_nav(k, NAV_ACTIF if k == cle else BARRE)
+            self.nav_ind[k].config(bg=ACC if k == cle else self.nav_ligne[k].cget("bg"))
         if cle == "conc":
-            self.r.after(10, lambda: graphe_parts(self.g_parts, self.m.entreprises))
+            self.r.after(10, lambda: self.m.mode != "br" and graphe_parts(self.g_parts, self.m.entreprises))
         if cle == "bord":
             self.r.after(10, lambda: graphe_finances(self.g_fin, self.m.joueur.historique))
         if cle == "equipe":
             self.maj_equipe()
+        if cle == "conc" and self.m.mode == "br":
+            self.maj_conc()
         if cle == "activite":
             self.maj_activite()
         if cle == "rachats":
@@ -1314,6 +2014,8 @@ class Application:
             self.maj_fin()
         if cle == "banque":
             self.maj_banque()
+        if hasattr(self, "tuto_cadre"):
+            self.maj_tuto()
 
     # ------------------------------------------------------------ page : tableau de bord
     def construire_bord(self, p):
@@ -1371,10 +2073,10 @@ class Application:
         Bouton(fi, "Emprunter", self.emprunter, "secondaire").pack(side="left", fill="x", expand=True, padx=(0, 4))
         Bouton(fi, "Lever des fonds", self.lever, "secondaire").pack(side="left", fill="x", expand=True, padx=(4, 0))
 
-        conseil = tk.Frame(dc, bg="#181818")
+        conseil = tk.Frame(dc, bg="#1a1a20")
         conseil.pack(fill="x", pady=(12, 0))
         tk.Frame(conseil, bg=ACC, width=3).pack(side="left", fill="y")
-        self.l_conseil = tk.Label(conseil, font=police(9), bg="#181818", fg="#e5e5e5", justify="left", anchor="w",
+        self.l_conseil = tk.Label(conseil, font=police(9), bg="#1a1a20", fg="#e5e5e5", justify="left", anchor="w",
                                   wraplength=280, padx=10, pady=8)
         self.l_conseil.pack(fill="x")
 
@@ -1440,6 +2142,7 @@ class Application:
     def rangee(parent, fond=PANNEAU2, pady=5):
         l = tk.Frame(parent, bg=fond, padx=10, pady=pady)
         l.pack(fill="x", pady=(0, 6))
+        arrondir(l, 10)
         return l
 
     def badge_activite(self):
@@ -2093,6 +2796,9 @@ class Application:
     # ------------------------------------------------------------ page : concurrence
     def construire_conc(self, p):
         self.cartes_conc = tk.Frame(p, bg=FOND)
+        if self.m.mode == "br":
+            self.cartes_conc.pack(fill="both", expand=True)
+            return
         self.cartes_conc.pack(fill="x")
         c = Carte(p, "Parts de marché", "Chaque mois, les clients se répartissent selon le prix, la notoriété, "
                   "la qualité et la satisfaction.")
@@ -2106,21 +2812,28 @@ class Application:
         for w in zone.winfo_children():
             w.destroy()
         s = self.m.s
+        if self.m.mode == "br":
+            if self.page == "conc":
+                self.arene(zone)
+            return
         classes = self.m.classement()
         n = len(classes)
-        colonnes = 3 if n > 4 else max(1, n)
+        if n > 5:
+            self.conc_compact(zone, classes)
+            return
+        colonnes = max(1, n)
         for i, e in enumerate(classes):
             h = e.historique[-1] if e.historique else None
-            carte = tk.Frame(zone, bg=PANNEAU, highlightthickness=2 if e.joueur else 1,
-                             highlightbackground=e.couleur if e.joueur else BORD)
+            carte = tk.Frame(zone, bg=PANNEAU, padx=14, pady=12)
             carte.grid(row=i // colonnes, column=i % colonnes, sticky="nsew",
                        padx=(0 if i % colonnes == 0 else 10, 0), pady=(0 if i < colonnes else 10, 0))
             zone.columnconfigure(i % colonnes, weight=1, uniform="c")
-            tk.Frame(carte, bg=e.couleur if e.actif else "#3a3a3a", height=4).pack(fill="x")
-            corps = tk.Frame(carte, bg=PANNEAU, padx=14, pady=10)
+            arrondir(carte, 12)
+            corps = tk.Frame(carte, bg=PANNEAU)
             corps.pack(fill="both", expand=True)
             t = tk.Frame(corps, bg=PANNEAU)
             t.pack(fill="x")
+            tk.Frame(t, bg=e.couleur if e.actif else "#3a3a3a", width=4, height=22).pack(side="left", padx=(0, 8))
             tk.Label(t, text=f"#{i + 1}" if e.actif else "—", font=police(10, True), bg=PANNEAU2,
                      fg=AMBRE if i == 0 and e.actif else TXT, padx=6).pack(side="left")
             tk.Label(t, text=("★ " if e.joueur else "") + e.nom, font=police(11, True), bg=PANNEAU,
@@ -2165,6 +2878,127 @@ class Application:
                 b.pack(side="left")
                 b.activer(not e.refus_rachat)
                 tk.Label(pied, text=f"{e.salaries} salarié(s)", font=police(8), bg=PANNEAU, fg=MUT).pack(side="right")
+
+    def etat_arene(self):
+        """(survivantes triées, place du joueur, nombre gardé à la prochaine zone, mois avant la zone)."""
+        m = self.m
+        vivants = m.survivantes()
+        place = vivants.index(m.joueur) + 1 if m.joueur in vivants else m.rang_joueur()
+        k = min(m.zone_k + 1, m.zones)
+        return vivants, place, m.cible_zone(k), m.mois_avant_zone()
+
+    def arene(self, zone):
+        m, j = self.m, self.m.joueur
+        vivants, place, cible, dans = self.etat_arene()
+        n = len(vivants)
+        danger = place > cible
+        sc = M.Marche.score_br
+        moi = sc(j) if j.actif else 0.0
+        # écart de score avec la première éliminée (à l'abri) ou avec la dernière qualifiée (en danger)
+        ref = (vivants[cible - 1] if danger else vivants[cible]) if cible < n or danger else None
+        marge = (moi - sc(ref)) * j.capital if ref is not None else j.valorisation()
+        rangee_kpis(zone, [
+            ("Survivantes", f"{n} / {m.depart}", f"zone {min(m.zone_k + 1, m.zones)} sur {m.zones}", TXT),
+            ("Prochaine zone", f"dans {dans} mois", f"il n'en restera que {cible}", AMBRE if dans == 1 else TXT),
+            ("Votre place", place_txt(place), f"coupe à la {place_txt(cible)} place", ROUGE if danger else VERT),
+            ("Marge sur la coupe", court(marge, True), "valeur à gagner pour être à l'abri" if danger else
+             "de valeur d'avance sur la première éliminée", ROUGE if danger else VERT)]).pack(fill="x")
+        corps = tk.Frame(zone, bg=FOND)
+        corps.pack(fill="both", expand=True, pady=(12, 0))
+        corps.columnconfigure(0, weight=3, uniform="ar")
+        corps.columnconfigure(1, weight=2, uniform="ar")
+        corps.rowconfigure(0, weight=1)
+        c = Carte(corps, "Classement", "Classées par valeur créée par euro investi (valeur ÷ argent reçu) : lever "
+                  "des fonds ne suffit pas à monter. Sous la ligne rouge, la prochaine zone élimine.")
+        c.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        t = tk.Frame(c, bg=PANNEAU)
+        t.pack(fill="x")
+        t.columnconfigure(1, weight=1)
+        for k, e in enumerate(["", "Entreprise", "Score", "Valeur", "CA du mois", ""]):
+            tk.Label(t, text=e.upper(), font=police(8, True), bg=PANNEAU, fg=MUT).grid(
+                row=0, column=k, sticky="e" if 2 <= k <= 4 else "w", padx=(0, 12), pady=(0, 4))
+        montrer = sorted(set(range(1, min(n, 8) + 1)) | set(range(max(1, place - 3), min(n, place + 3) + 1))
+                         | {min(n, cible), min(n, cible + 1)})
+        ligne, precedent = 1, 0
+        for p in montrer:
+            if p - precedent > 1:
+                tk.Label(t, text="⋯", font=police(9), bg=PANNEAU, fg=DISCRET).grid(row=ligne, column=1, sticky="w")
+                ligne += 1
+            if precedent == cible or (precedent < cible < p):
+                tk.Frame(t, bg=ROUGE, height=2).grid(row=ligne, column=0, columnspan=6, sticky="ew", pady=3)
+                ligne += 1
+            e = vivants[p - 1]
+            h = e.historique[-1] if e.historique else None
+            fond = "#1b1b40" if e.joueur else PANNEAU
+            cells = [place_txt(p), ("★ " if e.joueur else "") + e.nom, f"× {sc(e):.2f}".replace(".", ","),
+                     court(e.valorisation()), court(h["ca"]) if h else "—"]
+            for k, txt in enumerate(cells):
+                tk.Label(t, text=txt, font=police(9, e.joueur or k == 0), bg=fond, anchor="w" if k < 2 else "e",
+                         fg=AMBRE if (k == 0 and p <= 3) else ROUGE if (k == 0 and p > cible) else TXT
+                         ).grid(row=ligne, column=k, sticky="ew" if k == 1 else ("e" if k >= 2 else "w"),
+                                padx=(0, 12), pady=1, ipady=2)
+            if not e.joueur and not m.fin:
+                b = Bouton(t, f"Refuse ({e.refus_rachat} m)" if e.refus_rachat else "Racheter…",
+                           lambda e=e: self.racheter(e), "fantome", taille=8, padx=6, pady=1)
+                b.grid(row=ligne, column=5, sticky="e", pady=1)
+                b.activer(not e.refus_rachat)
+            ligne += 1
+            precedent = p
+        if precedent == cible:
+            tk.Frame(t, bg=ROUGE, height=2).grid(row=ligne, column=0, columnspan=6, sticky="ew", pady=3)
+        d = Carte(corps, "Fil de l'arène", "Éliminations, faillites, rachats et butins, en direct.")
+        d.grid(row=0, column=1, sticky="nsew")
+        if not m.feed:
+            texte_libre(d, f"Calme avant la tempête : la première zone arrive au mois {M.BR_PREMIERE_ZONE}.",
+                        largeur=380)
+        for mois, txt in list(reversed(m.feed))[:16]:
+            l = tk.Frame(d, bg=PANNEAU)
+            l.pack(fill="x", pady=1)
+            tk.Label(l, text=f"m{mois}", font=police(8, True), bg=PANNEAU, fg=DISCRET, width=4, anchor="w"
+                     ).pack(side="left")
+            coul = (AMBRE if txt[:1] in "🌀🏆" else VERT if txt[:1] == "📦" else ACC_SURVOL if j.nom in txt
+                    else "#cfcfcf")
+            tk.Label(l, text=txt, font=police(9, txt[:1] == "🌀"), bg=PANNEAU, fg=coul, anchor="w", justify="left",
+                     wraplength=360).pack(side="left", fill="x")
+
+    def conc_compact(self, zone, classes):
+        """Beaucoup de concurrents : une ligne par entreprise."""
+        s = self.m.s
+        c = Carte(zone, padx=14, pady=10)
+        c.pack(fill="x")
+        entetes = ["", "Entreprise", "Stratégie", "Part", "CA du mois", "Valeur", "Trésorerie", "Note", "Activité", ""]
+        for k, t in enumerate(entetes):
+            tk.Label(c, text=t.upper(), font=police(8, True), bg=PANNEAU, fg=MUT).grid(
+                row=0, column=k, sticky="e" if 3 <= k <= 6 else "w", padx=(0, 12), pady=(0, 4))
+        c.columnconfigure(8, weight=1)
+        rang = 0
+        for i, e in enumerate(classes, 1):
+            h = e.historique[-1] if e.historique else None
+            fond = PANNEAU2 if e.joueur else PANNEAU
+            if e.actif:
+                rang += 1
+            cells = [f"#{rang}" if e.actif else "—",
+                     ("★ " if e.joueur else "● ") + e.nom,
+                     "vous" if e.joueur else e.strategie.nom.replace(" financée", ""),
+                     pct(h["part"]) if h and e.actif else "—",
+                     court(h["ca"]) if h and e.actif else "—",
+                     court(e.valorisation()) if e.actif else "—",
+                     court(e.tresorerie) if e.actif else "—",
+                     e.note if e.actif else "",
+                     e.act.resume() if e.actif else e.fin_raison]
+            for k, t in enumerate(cells):
+                coul = (e.couleur if k == 1 else AMBRE if k == 0 and rang == 1 and e.actif else
+                        ROUGE if not e.actif and k == 8 else TXT if e.actif else DISCRET)
+                if k == 6 and e.actif and e.tresorerie < e.charges_fixes():
+                    coul = ROUGE
+                tk.Label(c, text=t, font=police(9, e.joueur or k in (0, 1)), bg=fond, fg=coul, anchor="w",
+                         ).grid(row=i, column=k, sticky="ew" if k == 8 else ("e" if 3 <= k <= 6 else "w"),
+                                padx=(0, 12), pady=1, ipady=3)
+            if not e.joueur and e.actif and not self.m.fin:
+                b = Bouton(c, f"Refuse ({e.refus_rachat} m)" if e.refus_rachat else "Racheter…",
+                           lambda e=e: self.racheter(e), "fantome", taille=8, padx=6, pady=1)
+                b.grid(row=i, column=9, sticky="e", pady=1)
+                b.activer(not e.refus_rachat)
 
     # ------------------------------------------------------------ page : investir
     def construire_inv(self, p):
@@ -2235,7 +3069,8 @@ class Application:
                 ("Capacité", "—" if isinstance(j.act, M.ActiviteEnergie) else M.fmt_n(j.capacite()), TXT),
                 (jg[0], jg[2], couleur_note(jg[1], jg[3])),
                 ("Moral de l'équipe", f"{j.moral:.0f}/100", couleur_note(j.moral))]):
-            c = tk.Frame(haut, bg=PANNEAU, highlightthickness=1, highlightbackground=BORD, padx=14, pady=8)
+            c = tk.Frame(haut, bg=PANNEAU, padx=16, pady=10)
+            arrondir(c, 12)
             c.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 10, 0))
             haut.columnconfigure(i, weight=1, uniform="e")
             tk.Label(c, text=lib.upper(), font=police(8, True), bg=PANNEAU, fg=MUT).pack(anchor="w")
@@ -2258,6 +3093,7 @@ class Application:
         for e in sorted(nommes, key=lambda e: -e.salaire):
             l = tk.Frame(g, bg=PANNEAU2, padx=10, pady=6)
             l.pack(fill="x", pady=(0, 6))
+            arrondir(l, 10)
             tk.Label(l, text=e.p.icone, font=police(16), bg=PANNEAU2, fg=TXT, width=2).pack(side="left")
             dr = tk.Frame(l, bg=PANNEAU2)
             dr.pack(side="right")
@@ -2284,6 +3120,7 @@ class Application:
         if equipiers:
             l = tk.Frame(g, bg=PANNEAU2, padx=10, pady=6)
             l.pack(fill="x", pady=(0, 6))
+            arrondir(l, 10)
             tk.Label(l, text="👤", font=police(16), bg=PANNEAU2, fg=TXT, width=2).pack(side="left")
             dr = tk.Frame(l, bg=PANNEAU2)
             dr.pack(side="right")
@@ -2308,6 +3145,7 @@ class Application:
         for c in j.vivier:
             k = tk.Frame(d, bg=PANNEAU2, padx=12, pady=8)
             k.pack(fill="x", pady=(0, 8))
+            arrondir(k, 10)
             t = tk.Frame(k, bg=PANNEAU2)
             t.pack(fill="x")
             tk.Label(t, text=f"{c.p.icone}  {c.nom}", font=police(11, True), bg=PANNEAU2, fg=TXT).pack(side="left")
@@ -2394,6 +3232,7 @@ class Application:
         for f in m.opportunites:
             k = tk.Frame(g, bg=PANNEAU2, padx=12, pady=8)
             k.pack(fill="x", pady=(0, 8))
+            arrondir(k, 10)
             t = tk.Frame(k, bg=PANNEAU2)
             t.pack(fill="x")
             tk.Label(t, text=f.nom, font=police(11, True), bg=PANNEAU2, fg=TXT).pack(side="left")
@@ -2424,6 +3263,7 @@ class Application:
         for f in j.filiales:
             k = tk.Frame(d, bg=PANNEAU2, padx=12, pady=8)
             k.pack(fill="x", pady=(0, 8))
+            arrondir(k, 10)
             t = tk.Frame(k, bg=PANNEAU2)
             t.pack(fill="x")
             tk.Label(t, text=f.nom, font=police(11, True), bg=PANNEAU2, fg=TXT).pack(side="left")
@@ -2784,7 +3624,8 @@ class Application:
                        f"{euros(cpx - j.capital, True)} de résultats accumulés.", VERT if cpx >= j.capital else AMBRE
                        if cpx > 0 else ROUGE))
         for i, (titre, val, expl, coul) in enumerate(cartes):
-            c = tk.Frame(z, bg=PANNEAU, highlightthickness=1, highlightbackground=BORD, padx=14, pady=10)
+            c = tk.Frame(z, bg=PANNEAU, padx=16, pady=12)
+            arrondir(c, 12)
             c.grid(row=i // 4, column=i % 4, sticky="nsew", padx=(0 if i % 4 == 0 else 10, 0),
                    pady=(0 if i < 4 else 10, 0))
             z.columnconfigure(i % 4, weight=1, uniform="r")
@@ -2895,6 +3736,7 @@ class Application:
         for pr in j.prets:
             l = tk.Frame(c, bg=PANNEAU2, padx=10, pady=6)
             l.pack(fill="x", pady=(0, 6))
+            arrondir(l, 10)
             h = tk.Frame(l, bg=PANNEAU2)
             h.pack(fill="x")
             tk.Label(h, text=pr.libelle, font=police(10, True), bg=PANNEAU2, fg=TXT).pack(side="left")
@@ -2996,6 +3838,7 @@ class Application:
         for cb in j.credits_bail:
             l = tk.Frame(c, bg=PANNEAU2, padx=10, pady=6)
             l.pack(fill="x", pady=(0, 6))
+            arrondir(l, 10)
             tk.Label(l, text=cb["libelle"], font=police(10, True), bg=PANNEAU2, fg=TXT).pack(anchor="w")
             tk.Label(l, text=f"{euros(cb['loyer'])}/mois · encore {cb['restant']} loyers sur {cb['total']}",
                      font=police(8), bg=PANNEAU2, fg=MUT).pack(anchor="w")
@@ -3258,6 +4101,10 @@ class Application:
             return
         rang_avant = m.rang_joueur()
         lignes = m.jouer_mois(self.v_prix.get(), self.v_mkt.get(), self.v_qual.get())
+        if self.tuto and self.tuto.get("actif"):
+            etapes = self.etapes_tuto()
+            premiere = next((k for k, e in enumerate(etapes) if e["mois"] >= m.mois), len(etapes))
+            self.tuto["i"] = max(self.tuto["i"], premiere)
         infos = []
         for ligne in lignes:
             if ligne.startswith("—"):
@@ -3265,7 +4112,7 @@ class Application:
             elif ligne[:1] in "⚠🚨💀🚪❌✖💔":
                 tag = "mauvais"
                 infos.append(ligne)
-            elif ligne[:1] in "✅📦🔬💊🧾🏆":
+            elif ligne[:1] in "✅📦🔬💊🧾🏆🌀":
                 tag = "bon"
                 infos.append(ligne)
             elif ligne[:1] in "📉📰🤝🆕ℹ🏗📣🏢🏷🏭⚡🎮📜":
@@ -3279,6 +4126,7 @@ class Application:
             else:
                 tag = None
             self.ecrire(ligne, tag)
+        zone = next((l for l in lignes if l.startswith("🌀")), None)
         ev = m.tirer_evenement()
         rang = m.rang_joueur()
         if not m.fin and rang != rang_avant and len(m.entreprises) > 1:
@@ -3296,6 +4144,9 @@ class Application:
             else:
                 self.dialogue(ev["titre"], ev["texte"], icone="★", couleur=AMBRE)
             self.maj()
+        if zone and not m.fin:
+            self.maj()
+            self.dialogue("La zone se resserre !", zone, icone="🌀", couleur=VIOLET)
         if m.fin:
             self.b_suivant.activer(False)
             self.fin_de_partie()
@@ -3338,6 +4189,18 @@ class Application:
         m, j, s = self.m, self.m.joueur, self.m.s
         h = j.historique[-1] if j.historique else None
         c = []
+        if m.mode == "br" and not m.fin:
+            vivants, place, cible, dans = self.etat_arene()
+            if place > cible:
+                manque = (M.Marche.score_br(vivants[cible - 1]) - M.Marche.score_br(j)) * j.capital
+                c.append(f"🌀 Zone dans {dans} mois : vous êtes {place_txt(place)}, la coupe est à la "
+                         f"{place_txt(cible)} place. Il vous manque ≈ {court(manque)} de valeur.")
+            elif place > cible * 0.8:
+                c.append(f"🌀 Vous êtes {place_txt(place)}, juste au-dessus de la coupe ({place_txt(cible)}) : "
+                         "restez vigilant.")
+            butins = [f for f in m.opportunites if getattr(f, "butin", False)]
+            if butins:
+                c.append(f"📦 Butin à saisir : {butins[0].nom} pour {court(butins[0].prix)} (page Rachats).")
         charges = j.charges_fixes() + self.v_mkt.get() + self.v_qual.get()
         if j.tresorerie < 0:
             c.append(f"Compte à découvert ({court(j.tresorerie)}) : chaque mois coûte des agios. Renflouez "
@@ -3382,16 +4245,19 @@ class Application:
         # en-tête et barre latérale
         self.l_date.config(text=m.date().capitalize())
         self.l_treso.config(text=court(j.tresorerie), fg=VERT if j.tresorerie >= 0 else ROUGE)
-        self.l_note.config(text=f"Note {j.note}", bg=COULEURS_NOTE[j.note])
-        nb = len(m.entreprises)
-        rang = m.rang_joueur()
-        self.l_rang.config(text=f"#{rang}" if nb > 1 else "Solo")
-        self.l_rang2.config(text=f"au classement, sur {nb} entreprises" if nb > 1 else "aucun concurrent")
+        self.l_note.config(text=f"Note {j.note}")
+        teinter(self.l_note, COULEURS_NOTE[j.note])
+        if m.mode == "br":
+            vivants, rang, cible, dans = self.etat_arene()
+            self.l_rang.config(text=f"#{rang}", fg=ROUGE if rang > cible else AMBRE)
+            self.l_rang2.config(text=f"sur {len(vivants)} survivantes ({m.depart} au départ)")
+        else:
+            nb = len(m.entreprises)
+            rang = m.rang_joueur()
+            self.l_rang.config(text=f"#{rang}" if nb > 1 else "Solo", fg=AMBRE)
+            self.l_rang2.config(text=f"au classement, sur {nb} entreprises" if nb > 1 else "aucun concurrent")
         self.l_mois.config(text=f"MOIS {min(m.mois + 1, m.duree)} / {m.duree}")
-        self.c_temps.update_idletasks()
-        lw = self.c_temps.winfo_width()
-        self.c_temps.delete("all")
-        self.c_temps.create_rectangle(0, 0, lw * m.mois / m.duree, 6, fill=ACC, outline="")
+        barre_arrondie(self.c_temps, m.mois / m.duree, ACC, "#232329")
 
         # tuiles
         def delta(cle, fmt):
@@ -3427,7 +4293,8 @@ class Application:
         self.anneaux["jauge"].maj(min(vj, 100), txt_j, couleur_note(vj, inverse))
         graphe_finances(self.g_fin, hist)
         self.maj_conc()
-        graphe_parts(self.g_parts, m.entreprises)
+        if m.mode != "br":
+            graphe_parts(self.g_parts, m.entreprises)
         self.maj_inv()
         self.maj_activite()
         self.maj_equipe()
@@ -3441,7 +4308,157 @@ class Application:
         fache = any(e.alerte or e.moral < 35 for e in j.equipe if e.profil != "equipier")
         self.nav["equipe"].config(text="☺   Équipe" + ("   ●" if fache else ""))
         self.nav["rachats"].config(text="⇄   Rachats" + (f"   ● {len(m.opportunites)}" if m.opportunites else ""))
+        self.maj_objectif()
+        self.bulles.sortir()
+        self.maj_tuto()
         self.sauvegarder(silencieux=True)
+
+    # ------------------------------------------------------------ objectif
+    def maj_objectif(self):
+        j = self.m.joueur
+        if self.m.mode == "br":
+            vivants, place, cible, dans = self.etat_arene()
+            if self.m.fin or self.m.zone_k >= self.m.zones:
+                self.l_obj_titre.config(text="🏁  ARÈNE", fg=AMBRE)
+                self.l_obj.config(text=f"Partie terminée : {place_txt(self.m.rang_joueur())} sur {self.m.depart}.",
+                                  fg=TXT)
+                self.l_obj2.config(text="")
+                barre_arrondie(self.c_obj, 1.0, AMBRE, "#26262c")
+                return
+            danger = place > cible
+            self.l_obj_titre.config(text="🌀  ZONE", fg=ROUGE if danger else AMBRE)
+            self.l_obj.config(text=f"Dans {dans} mois, seules les {cible} premières restent. Vous êtes "
+                              f"{place_txt(place)}.", fg=ROUGE if danger else TXT)
+            self.l_obj2.config(text="⚠ Vous seriez éliminé : augmentez votre valeur !" if danger else
+                               "Vous êtes à l'abri… pour l'instant.")
+            barre_arrondie(self.c_obj, max(0.05, min(1.0, cible / max(place, 1))) if danger else
+                           1 - (place - 1) / max(cible, 1) * 0.9, ROUGE if danger else VERT, "#26262c")
+            return
+        valo = j.valorisation()
+        moic = (valo + j.dividendes_verses) / max(1.0, j.capital)
+        seuil, nom = next(x for x in PALIERS if moic < x[0]) if j.mois_reels() else PALIERS[0]
+        if seuil == 1:
+            txt = f"Finir en valant plus que l'argent reçu : {court(j.capital)}"
+            sous = (f"Aujourd'hui : {court(valo + j.dividendes_verses)}, soit × {moic:.2f}".replace(".", ",")
+                    if j.mois_reels() else "La valeur s'affichera après le premier mois.")
+        elif seuil == float("inf"):
+            txt, sous = "🦄 Licorne ! Plus de 15 fois l'argent investi.", f"× {moic:.1f}".replace(".", ",")
+        else:
+            txt = f"✓ Objectif atteint ! Prochain palier : × {seuil:g} « {nom} »"
+            sous = f"Vous en êtes à × {moic:.1f}".replace(".", ",")
+        self.l_obj.config(text=txt, fg=TXT if moic < 1 else VERT)
+        self.l_obj2.config(text=sous)
+        part = 1.0 if seuil == float("inf") else min(1.0, moic / seuil)
+        barre_arrondie(self.c_obj, part, VERT if moic >= 1 else AMBRE, "#26262c")
+
+    # ------------------------------------------------------------ tutoriel
+    def etapes_tuto(self):
+        m, j, s = self.m, self.m.joueur, self.m.s
+        noms = [d[0].lower() for d in (s.decisions.get("prix"), s.decisions["mkt"], s.decisions["qual"]) if d]
+        capa = M.fmt_n(j.act.capacite_nominale()) if isinstance(j.act, M.ActiviteIndustrie) else ""
+
+        def E(mois, titre, page, texte, tour=False):
+            return {"mois": mois, "titre": titre, "page": page, "texte": texte, "tour": tour}
+        return [
+            E(0, "Bienvenue !", "bord", f"Tu diriges {j.nom}, dans le secteur {s.nom}. Ton objectif : que ton "
+              f"entreprise finisse par valoir plus que l'argent que toi et tes investisseurs y avez mis "
+              f"({court(j.capital)}). Il est rappelé en bas à gauche, avec les paliers suivants."),
+            *([E(0, "L'arène", "conc", f"Battle royale : 100 entreprises, une seule gagnante. À partir du mois "
+                 f"{M.BR_PREMIERE_ZONE}, puis tous les {M.BR_ZONE} mois, la zone élimine les moins bien valorisées. "
+                 "Ta place et le compte à rebours sont en bas à gauche ; le classement et le fil d'actualité, page "
+                 "Arène. Les éliminées laissent du butin à moitié prix, page Rachats.")] if m.mode == "br" else []),
+            E(0, "Ta trésorerie", "bord", "En haut à droite : l'argent sur ton compte. S'il devient négatif trop "
+              "longtemps, c'est la faillite. Attention : on peut gagner de l'argent sur le papier et en manquer quand "
+              "même."),
+            E(0, f"Ton métier : {s.libelle_activite.lower()}", "activite",
+              ACTIVITE_TUTO[s.modele].format(capa=capa) + f" Métrique clé : {s.metrique.lower()}."),
+            E(0, "Tes décisions du mois", "bord", "Sur la gauche du tableau de bord, règle tes décisions : "
+              + ", ".join(noms) + ". " + DECISIONS_TUTO[s.modele]),
+            E(0, "Les mots compliqués", None, "Passe la souris sur un terme financier (trésorerie, EBE, point mort, "
+              "churn…) : une bulle l'explique, avec un exemple. Essaie sur « Valeur de l'entreprise », en haut."),
+            E(0, "À toi de jouer", None, "Clique sur « Mois suivant », en bas à gauche (ou appuie sur Entrée). Le mois "
+              "se joue, puis tu découvres le résultat.", True),
+            E(1, "Ton premier mois", "bord", "Les tuiles du haut résument le mois : chiffre d'affaires (ce que tu as "
+              "vendu), résultat (ce qu'il reste après toutes les dépenses), les indicateurs clés de ton secteur et la "
+              "valeur de ton entreprise. Le bandeau jaune, en bas, résume ce qui s'est passé."),
+            E(1, "Tes comptes", "fin", "Le compte de résultat dit ce que tu as gagné ou perdu, le bilan ce que possède "
+              "l'entreprise et qui la finance. Le prévisionnel montre ta trésorerie des 6 prochains mois : c'est lui "
+              "qui évite les mauvaises surprises."),
+            E(1, "Ton équipe", "equipe", "Chaque mois arrivent de nouveaux candidats, avec un talent, un salaire "
+              "demandé et une exigence. Si tu ne respectes pas leur exigence, ils finissent par partir."),
+            E(1, "Mois suivant", None, "Joue le mois suivant quand tu es prêt.", True),
+            E(2, "La banque", "banque", "Ta note de crédit (de A à E) décide de ce que la banque te prête. Tu peux "
+              "aussi lever des fonds : de l'argent jamais remboursé, contre une part de ton entreprise."),
+            E(2, "Tes concurrents", "conc", "Ils se battent pour les mêmes clients, et tu peux même en racheter un. "
+              "Le classement se fait sur la valeur des entreprises."),
+            E(2, "Un geste clé de ton secteur", "activite", ACTION_TUTO[s.modele]),
+            E(3, "Tu sais l'essentiel !", None, "Le tutoriel est terminé. Suis les conseils du tableau de bord et vise "
+              "les paliers de l'objectif, en bas à gauche. Bonne chance !"),
+        ]
+
+    def maj_tuto(self):
+        cadre = self.tuto_cadre
+        for w in cadre.winfo_children():
+            w.destroy()
+        for k, b in self.nav.items():
+            b.config(fg=TXT if k == self.page else MUT)
+        t = self.tuto
+        if not t or not t.get("actif") or self.m.fin:
+            cadre.pack_forget()
+            return
+        etapes = self.etapes_tuto()
+        if t["i"] >= len(etapes):
+            self.fin_tuto()
+            return
+        e = etapes[t["i"]]
+        if e["mois"] > self.m.mois:
+            cadre.pack_forget()
+            return
+        fond = "#15163a"
+        cadre.pack(fill="x", pady=(12, 0), after=self.tuto_apres)
+        arrondir(cadre, 12)
+        tk.Frame(cadre, bg=AMBRE, width=4).pack(side="left", fill="y")
+        bts = tk.Frame(cadre, bg=fond, padx=10, pady=6)
+        bts.pack(side="right")
+        corps = tk.Frame(cadre, bg=fond, padx=14, pady=8)
+        corps.pack(side="left", fill="both", expand=True)
+        haut = tk.Frame(corps, bg=fond)
+        haut.pack(fill="x")
+        for txt, fnt, coul in ((f"🎓 TUTORIEL · {t['i'] + 1}/{len(etapes)}", police(8, True), AMBRE),
+                               ("   " + e["titre"], police(10, True), TXT)):
+            l = tk.Label(haut, text=txt, font=fnt, bg=fond, fg=coul)
+            l._sans_bulle = True
+            l.pack(side="left")
+        l = tk.Label(corps, text=e["texte"], font=police(10), bg=fond, fg="#d4d4d4", wraplength=760,
+                     justify="left", anchor="w")
+        l._sans_bulle = True
+        l.pack(anchor="w", fill="x", pady=(2, 0))
+        corps.bind("<Configure>", lambda ev, l=l: l.config(wraplength=max(300, ev.width - 30)))
+        if e["page"] and self.page != e["page"]:
+            Bouton(bts, "Montre-moi  →", lambda p=e["page"]: self.afficher(p), "primaire", taille=9, padx=10,
+                   pady=3).pack(fill="x", pady=2)
+            self.nav[e["page"]].config(fg=AMBRE)
+        if e["tour"]:
+            tk.Label(bts, text="▼ Mois suivant", font=police(9, True), bg=fond, fg=AMBRE).pack(pady=2)
+        else:
+            dernier = t["i"] == len(etapes) - 1
+            Bouton(bts, "Terminer" if dernier else "Suivant  ▸", self.tuto_suivant, "vert" if dernier else
+                   "secondaire", taille=9, padx=10, pady=3).pack(fill="x", pady=2)
+        if t["i"] < len(etapes) - 1:
+            Bouton(bts, "Passer le tutoriel", self.fin_tuto, "fantome", taille=8, padx=8, pady=2).pack(fill="x",
+                                                                                                    pady=2)
+
+    def tuto_suivant(self):
+        self.tuto["i"] += 1
+        self.maj_tuto()
+
+    def fin_tuto(self):
+        if self.tuto:
+            self.tuto["actif"] = False
+        ecrire_profil(tutoriel_fait=True)
+        self.tuto_cadre.pack_forget()
+        for k, b in self.nav.items():
+            b.config(fg=TXT if k == self.page else MUT)
 
     # ------------------------------------------------------------ fin de partie
     def fin_de_partie(self):
@@ -3453,7 +4470,10 @@ class Application:
             except OSError:
                 pass
         self.l_sauve.config(text="Partie terminée", fg=MUT)
+        br = m.mode == "br"
         raison = {"faillite": "Votre entreprise a fait faillite.",
+                  "elimine": f"La zone vous a éliminé au mois {m.mois}.",
+                  "victoire": "Vous êtes la dernière entreprise debout dans l'arène !",
                   "rachat": f"Vous avez vendu votre entreprise à {m.acquereur or 'un repreneur'}.",
                   "terme": f"{M.DUREES_PARTIE.get(m.duree, f'{m.duree} mois').capitalize()} se sont écoulés : "
                            "l'heure du bilan."}[m.fin]
@@ -3461,25 +4481,41 @@ class Application:
         d.title("Bilan")
         d.transient(self.r)
         d.configure(highlightthickness=1, highlightbackground=BORD)
-        ok = m.fin != "faillite" and b["moic"] >= 1
+        ok = (b["place"] <= 10) if br else (m.fin != "faillite" and b["moic"] >= 1)
         tk.Frame(d, bg=VERT if ok else ROUGE, height=5).pack(fill="x")
         corps = tk.Frame(d, bg=PANNEAU, padx=30, pady=20)
         corps.pack(fill="both")
         tk.Label(corps, text=raison, font=police(11), bg=PANNEAU, fg=MUT).pack(anchor="w")
         tk.Label(corps, text=b["titre"], font=police(26, True), bg=PANNEAU, fg=VERT if ok else ROUGE).pack(anchor="w")
-        if b["nb"] > 1:
+        if br:
+            tk.Label(corps, text=f"{emoji_resultat(m, b)}  {place_txt(b['place'])} sur {b['depart']}",
+                     font=police(22, True), bg=PANNEAU, fg=AMBRE).pack(anchor="w", pady=(2, 0))
+        else:
+            tk.Label(corps, text=("🎯 Objectif atteint : votre entreprise vaut plus que l'argent qu'elle a reçu." if ok
+                                  else "🎯 Objectif manqué : l'entreprise vaut moins que l'argent qu'elle a reçu. "
+                                  "Retentez votre chance !"), font=police(10, True), bg=PANNEAU,
+                     fg=VERT if ok else ROUGE).pack(anchor="w", pady=(2, 0))
+        if b["nb"] > 1 and not br:
             tk.Label(corps, text=f"Classement final : {b['rang']}{'re' if b['rang'] == 1 else 'e'} sur {b['nb']}",
                      font=police(13, True), bg=PANNEAU, fg=AMBRE).pack(anchor="w", pady=(2, 0))
         tk.Label(corps, text=b["commentaire"], font=police(11), bg=PANNEAU, fg="#d4d4d4", wraplength=560,
                  justify="left").pack(anchor="w", pady=(10, 12))
         stats = tk.Frame(corps, bg=PANNEAU)
         stats.pack(fill="x")
-        for i, (lib, val) in enumerate([("Multiple (MOIC)", f"× {b['moic']:.1f}".replace(".", ",")),
-                                        ("Valeur de l'entreprise", court(b["valeur"])),
-                                        ("Capital investi", court(b["capital"])),
-                                        ("Votre gain", court(b["gain"]))]):
+        tableau_stats = [("Multiple (MOIC)", f"× {b['moic']:.1f}".replace(".", ",")),
+                         ("Valeur de l'entreprise", court(b["valeur"])),
+                         ("Capital investi", court(b["capital"])),
+                         ("Votre gain", court(b["gain"]))]
+        if br:
+            franchies = m.zone_k if m.fin == "victoire" else max(0, m.zone_k - (1 if m.fin == "elimine" else 0))
+            tableau_stats = [("Place", f"{place_txt(b['place'])} / {b['depart']}"),
+                             ("Zones franchies", f"{franchies} / {m.zones}"),
+                             ("Valeur de l'entreprise", court(b["valeur"])),
+                             ("Multiple (MOIC)", f"× {b['moic']:.1f}".replace(".", ","))]
+        for i, (lib, val) in enumerate(tableau_stats):
             c = tk.Frame(stats, bg=PANNEAU2, padx=12, pady=8)
             c.grid(row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 8, 0))
+            arrondir(c, 10)
             stats.columnconfigure(i, weight=1)
             tk.Label(c, text=lib.upper(), font=police(8, True), bg=PANNEAU2, fg=MUT).pack(anchor="w")
             tk.Label(c, text=val, font=police(14, True), bg=PANNEAU2, fg=TXT).pack(anchor="w")
@@ -3489,11 +4525,23 @@ class Application:
                  f"{b['salaries']} · impôt sur les sociétés payé : {euros(b['impots'])} · note de crédit finale : "
                  f"{b['note']}", font=police(9), bg=PANNEAU, fg=MUT, wraplength=560, justify="left"
                  ).pack(anchor="w", pady=(8, 0))
-        if b["nb"] > 1:
+        if br:
+            vivants = m.survivantes()
+            if vivants and not vivants[0].joueur:
+                tk.Label(corps, text=f"En tête de l'arène : {vivants[0].nom} (× {M.Marche.score_br(vivants[0]):.1f}), "
+                         f"avec {len(vivants) - 1} autre(s) survivante(s).", font=police(10), bg=PANNEAU, fg=MUT
+                         ).pack(anchor="w", pady=(12, 0))
+        elif b["nb"] > 1:
             tk.Label(corps, text="Classement", font=police(11, True), bg=PANNEAU, fg=TXT).pack(anchor="w", pady=(16, 4))
-            for i, e in enumerate(m.classement(), 1):
-                l = tk.Frame(corps, bg=PANNEAU)
-                l.pack(fill="x", pady=1)
+            grille = tk.Frame(corps, bg=PANNEAU)
+            grille.pack(fill="x")
+            classes = m.classement()
+            par_col = len(classes) if len(classes) <= 7 else -(-len(classes) // 2)
+            for i, e in enumerate(classes, 1):
+                l = tk.Frame(grille, bg=PANNEAU)
+                l.grid(row=(i - 1) % par_col, column=(i - 1) // par_col, sticky="ew",
+                       padx=(0 if i <= par_col else 24, 0), pady=1)
+                grille.columnconfigure((i - 1) // par_col, weight=1, uniform="cl")
                 tk.Label(l, text=f"{i if e.actif else '—'}", font=police(10, True), bg=PANNEAU, fg=MUT, width=3
                          ).pack(side="left")
                 tk.Label(l, text="●", font=police(10), bg=PANNEAU, fg=e.couleur if e.actif else DISCRET
@@ -3554,6 +4602,7 @@ class Application:
         else:
             c = tk.Frame(gauche, bg=PANNEAU2, padx=16, pady=14, width=380)
             c.pack(fill="both")
+            arrondir(c, 10)
             tk.Label(c, text="🖼  Image de la carte", font=police(12, True), bg=PANNEAU2, fg=TXT).pack(anchor="w")
             tk.Label(c, text="Pour créer l'image à poster, le jeu a besoin de la bibliothèque gratuite Pillow. Il "
                      "peut l'installer tout seul (une minute, connexion Internet nécessaire).", font=police(10),
@@ -3590,6 +4639,10 @@ class Application:
 
     def installer_pil(self, fenetre, etat, fermer):
         """Installe Pillow avec pip, sans bloquer la fenêtre, puis rouvre la fenêtre de partage."""
+        if EST_EXE:
+            etat.config(text="Cette version .exe a été fabriquée sans Pillow : refaites-la après avoir tapé "
+                        "python -m pip install pillow (Pillow sera alors inclus dans le logiciel).", fg=AMBRE)
+            return
         import subprocess
         import sys
         import threading
